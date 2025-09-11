@@ -4,18 +4,10 @@ import com.ctre.phoenix6.CANBus
 import com.ctre.phoenix6.SignalLogger
 import com.ctre.phoenix6.StatusSignal
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain
-import com.frcteam3636.frc2025.subsystems.drivetrain.poi.ReefBranchSide
-import com.frcteam3636.frc2025.subsystems.elevator.Elevator
-import com.frcteam3636.frc2025.subsystems.funnel.Funnel
-import com.frcteam3636.frc2025.subsystems.manipulator.CoralState
-import com.frcteam3636.frc2025.subsystems.manipulator.Manipulator
-import com.frcteam3636.frc2025.utils.math.seconds
-import com.frcteam3636.frc2025.utils.rumble
 import com.frcteam3636.version.BUILD_DATE
 import com.frcteam3636.version.DIRTY
 import com.frcteam3636.version.GIT_BRANCH
 import com.frcteam3636.version.GIT_SHA
-import com.pathplanner.lib.auto.NamedCommands
 import edu.wpi.first.hal.FRCNetComm.tInstances
 import edu.wpi.first.hal.FRCNetComm.tResourceType
 import edu.wpi.first.hal.HAL
@@ -142,9 +134,6 @@ object Robot : LoggedRobot() {
     /** Start robot subsystems so that their periodic tasks are run */
     private fun configureSubsystems() {
         Drivetrain.register()
-        Manipulator.register()
-        Elevator.register()
-        Funnel.register()
     }
 
     /** Expose commands for autonomous routines to use and display an auto picker in Shuffleboard. */
@@ -156,161 +145,11 @@ object Robot : LoggedRobot() {
 //                Shooter.Flywheels.rev(580.0, 0.0)
 //            )
 //        )
-        NamedCommands.registerCommand(
-            "raiseElevatorL4",
-            Elevator.setTargetHeight(Elevator.Position.HighBar)
-                .andThen(Commands.waitUntil { Elevator.isAtTarget })
-        )
-        NamedCommands.registerCommand(
-            "raiseElevatorL3",
-            Elevator.setTargetHeight(Elevator.Position.MidBar)
-                .andThen(Commands.waitUntil { Elevator.isAtTarget })
-        )
-        NamedCommands.registerCommand(
-            "raiseElevatorL2",
-            Elevator.setTargetHeight(Elevator.Position.LowBar)
-                .andThen(Commands.waitUntil { Elevator.isAtTarget })
-        )
-        NamedCommands.registerCommand(
-            "stowElevator",
-            Elevator.setTargetHeight(Elevator.Position.Stowed)
-        )
-        NamedCommands.registerCommand(
-            "outtake",
-            Manipulator.outtake().withTimeout(0.3.seconds)
-        )
-        NamedCommands.registerCommand(
-            "intake",
-            Commands.race(
-                Manipulator.intakeAuto(),
-                Funnel.intake()
-            ).withTimeout(3.0)
-        )
-        NamedCommands.registerCommand(
-            "alignToTarget",
-            Drivetrain.alignToClosestPOI(
-                sideOverride = ReefBranchSide.Left,
-                usePathfinding = false,
-                raiseElevator = false,
-                endConditionTimeout = 0.5
-            )
-                .withTimeout(3.5.seconds)
-        )
-        NamedCommands.registerCommand(
-            "alignToTargetRight",
-            Drivetrain.alignToClosestPOI(
-                sideOverride = ReefBranchSide.Right,
-                usePathfinding = false,
-                raiseElevator = false,
-                endConditionTimeout = 0.5
-            )
-                .withTimeout(3.5.seconds)
-        )
-        NamedCommands.registerCommand(
-            "raiseElevatorAlgae",
-            Elevator.setTargetHeight(Elevator.Position.AlgaeMidBar)
-        )
-        NamedCommands.registerCommand(
-            "alignToReefAlgae",
-            Drivetrain.alignToReefAlgae(usePathfinding = false)
-                .withTimeout(0.75.seconds)
-        )
-        NamedCommands.registerCommand(
-            "alignToBarge",
-            Drivetrain.alignToBarge(usePathfinding = false)
-                .withTimeout(0.9.seconds)
-        )
-        NamedCommands.registerCommand(
-            "intakeAlgae",
-            Commands.sequence(
-                Commands.runOnce({
-                    Manipulator.isIntakeRunning = true
-                }),
-                Manipulator.intakeAlgae(),
-            )
-        )
-        NamedCommands.registerCommand(
-            "tossAlgae",
-            tossAlgae()
-        )
-        NamedCommands.registerCommand(
-            "alignToStation",
-            Commands.parallel(
-                Drivetrain.alignToClosestPOI(sideOverride = ReefBranchSide.Right, usePathfinding = false)
-                    .withTimeout(1.seconds),
-                Elevator.setTargetHeight(Elevator.Position.HighBar),
-            )
-        )
-        NamedCommands.registerCommand(
-            "waitForIntake",
-            Commands.race(
-                Commands.waitUntil {
-                    Manipulator.coralState != CoralState.NONE
-                },
-                Commands.waitSeconds(1.0)
-            )
-        )
     }
-
-    private fun tossAlgae(): Command = Commands.sequence(
-        Commands.parallel(
-            Elevator.setTargetHeightAlgae(Elevator.Position.HighBar),
-            Commands.sequence(
-                Commands.runOnce({
-                    Manipulator.isIntakeRunning = true
-                }),
-                Commands.race(
-                    Manipulator.intakeAlgae(),
-                    Commands.waitSeconds(0.4),
-                ),
-                Commands.runOnce({
-                    Manipulator.isIntakeRunning = false
-                }),
-                Manipulator.outtakeAlgae().withTimeout(0.75),
-            )
-        ),
-        Elevator.setTargetHeight(Elevator.Position.Stowed)
-    )
 
     /** Configure which commands each joystick button triggers. */
     private fun configureBindings() {
         Drivetrain.defaultCommand = Drivetrain.driveWithJoysticks(joystickLeft.hid, joystickRight.hid)
-        Manipulator.defaultCommand = Manipulator.idle()
-
-        joystickRight.button(3).onTrue(Commands.runOnce({
-            println("Setting desired target node to left branch.")
-            Drivetrain.currentTargetSelection = ReefBranchSide.Left
-        }))
-
-        joystickRight.button(4).onTrue(Commands.runOnce({
-            println("Setting desired target node to right branch.")
-            Drivetrain.currentTargetSelection = ReefBranchSide.Right
-        }))
-
-        joystickLeft.button(1).whileTrue(Drivetrain.alignToClosestPOI(endConditionTimeout = 0.5))
-        joystickRight.povUp().whileTrue(
-            Drivetrain.alignToReefAlgae()
-        )
-//        joystickLeft.button(1).whileTrue(Drivetrain.alignToReefAlgae())
-        joystickRight.button(1).whileTrue(
-//            Commands.sequence(
-//                Manipulator.outtake().withTimeout(0.6),
-//                Elevator.setTargetHeight(Position.Stowed)
-//            )
-            Manipulator.outtake()
-        )
-
-//        controller.a().whileTrue(Drivetrain.alignToTargetWithPIDController())
-
-//        controller.b().onTrue(Commands.runOnce({
-//            println("Setting desired target node to left branch.")
-//            Drivetrain.currentTargetSelection = ReefBranchSide.Left
-//        }))
-//
-//        controller.x().onTrue(Commands.runOnce({
-//            println("Setting desired target node to right branch.")
-//            Drivetrain.currentTargetSelection = ReefBranchSide.Right
-//        }))
 
         // (The button with the yellow tape on it)
         joystickLeft.button(8).onTrue(Commands.runOnce({
@@ -322,80 +161,6 @@ object Robot : LoggedRobot() {
             println("Zeroing gyro.")
             Drivetrain.zeroGyro(offset = Rotation2d.fromDegrees(-60.0))
         }).ignoringDisable(true))
-
-
-
-        // Left close middle
-        joystickLeft.button(9)
-            .and { Robot.isDisabled }
-            .toggleOnTrue(Elevator.coast().ignoringDisable(true))
-
-        joystickLeft.button(14).onTrue(Elevator.runHoming())
-
-        controller.a().onTrue(Elevator.setTargetHeight(Elevator.Position.Stowed))
-        controller.b().onTrue(Elevator.setTargetHeight(Elevator.Position.MidBar))
-        controller.x().onTrue(Elevator.setTargetHeight(Elevator.Position.LowBar))
-        controller.y().onTrue(Elevator.setTargetHeight(Elevator.Position.HighBar))
-        controller.pov(0).onTrue(Elevator.setTargetHeight(Elevator.Position.AlgaeMidBar))
-        joystickLeft.button(2).onTrue(
-            tossAlgae()
-        )
-//
-        controller.leftBumper().whileTrue(Funnel.outtake())
-        controller.rightBumper().onTrue(
-            Commands.sequence(
-                Commands.runOnce({
-                    Manipulator.isIntakeRunning = true
-                }),
-                Commands.race(
-                    Manipulator.intake(
-                        driverFeedback = controller.rumble(
-                            GenericHID.RumbleType.kBothRumble,
-                            1.0,
-                            0.5.seconds,
-                        )
-                    ),
-                    Funnel.intake()
-                )
-            ).andThen({
-                Manipulator.isIntakeRunning = false
-            })
-        )
-
-        controller.rightTrigger().onTrue(
-            Commands.runOnce({
-                Manipulator.isIntakeRunning = false
-            })
-        )
-
-        controller.leftTrigger().onTrue(
-            Commands.sequence(
-                Commands.runOnce({
-                    Manipulator.isIntakeRunning = true
-                }),
-                Manipulator.intakeAlgae(),
-            )
-        )
-
-        // TODO: find a good button for this if needed
-//        joystickRight.button(2).whileTrue(
-//            Commands.parallel(
-//                Manipulator.intakeNoRaceWithOutInterrupt(),
-//                Funnel.intake()
-//            )
-//        )
-        joystickRight.button(2).whileTrue(Drivetrain.alignToBarge())
-
-//            Manipulator.intake()
-
-
-//        controller.leftBumper().onTrue(Commands.runOnce(SignalLogger::start))
-//        controller.rightBumper().onTrue(Commands.runOnce(SignalLogger::stop))
-////
-//        controller.y().whileTrue(Drivetrain.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-//        controller.a().whileTrue(Drivetrain.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-//        controller.b().whileTrue(Drivetrain.sysIdDynamic(SysIdRoutine.Direction.kForward));
-//        controller.x().whileTrue(Drivetrain.sysIdDynamic(SysIdRoutine.Direction.kReverse));
     }
 
     /** Add data to the driver station dashboard. */
