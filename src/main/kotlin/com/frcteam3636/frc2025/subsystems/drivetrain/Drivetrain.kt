@@ -10,8 +10,6 @@ import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.JOYSTI
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.ROTATION_PID_GAINS
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.ROTATION_SENSITIVITY
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.TRANSLATION_SENSITIVITY
-import com.frcteam3636.frc2025.subsystems.drivetrain.poi.BargeTargetZone
-import com.frcteam3636.frc2025.subsystems.drivetrain.poi.ReefBranchSide
 import com.frcteam3636.frc2025.utils.ElasticWidgets
 import com.frcteam3636.frc2025.utils.fieldRelativeTranslation2d
 import com.frcteam3636.frc2025.utils.math.*
@@ -55,7 +53,7 @@ import kotlin.math.withSign
 object Drivetrain : Subsystem, Sendable {
     private val io = when (Robot.model) {
         Robot.Model.SIMULATION -> DrivetrainIOSim()
-        Robot.Model.COMPETITION -> DrivetrainIOReal.fromKrakenSwerve()
+        Robot.Model.COMPETITION -> DrivetrainIOReal.fromNeoSwerve()
         Robot.Model.PROTOTYPE -> DrivetrainIOReal.fromNeoSwerve()
     }
     val inputs = LoggedDrivetrainInputs()
@@ -116,7 +114,7 @@ object Drivetrain : Subsystem, Sendable {
 
 
     init {
-        Pathfinding.setPathfinder(
+        Pathfinding.setPathfinder (
             LocalADStarAK()
         )
 
@@ -147,9 +145,6 @@ object Drivetrain : Subsystem, Sendable {
             poseEstimator.resetPose(io.swerveDriveSimulation.simulatedDriveTrainPose)
             io.registerPoseProviders(absolutePoseIOs.values.map { it.first })
         }
-
-        BargeTargetZone.RED.log("Drivetrain/BargeTargetZone/Red")
-        BargeTargetZone.BLUE.log("Drivetrain/BargeTargetZone/Blue")
     }
 
     override fun periodic() {
@@ -238,18 +233,6 @@ object Drivetrain : Subsystem, Sendable {
                 value
             )
         }
-
-    /**
-     * Update the QuestNav pose to keep its origin correct.
-     */
-//    private fun updateQuestNavOrigin() {
-//        val hasHighQualityData = absolutePoseIOs.values.any {
-//            it.second.measurement != null
-//        }
-//        if (!hasHighQualityData || isMoving) return
-//        questNavLocalizer.resetPose(poseEstimator.estimatedPosition)
-//        questNavCalibrated = true
-//    }
 
     override fun initSendable(builder: SendableBuilder) {
         builder.setSmartDashboardType(ElasticWidgets.SwerveDrive.widgetName)

@@ -149,18 +149,17 @@ object Robot : LoggedRobot() {
 
     /** Configure which commands each joystick button triggers. */
     private fun configureBindings() {
-        Drivetrain.defaultCommand = Drivetrain.driveWithJoysticks(joystickLeft.hid, joystickRight.hid)
-
+        Drivetrain.defaultCommand = Drivetrain.driveWithController(controller)
         // (The button with the yellow tape on it)
-        joystickLeft.button(8).onTrue(Commands.runOnce({
+        controller.x().onTrue(Commands.runOnce({
             println("Zeroing gyro.")
             Drivetrain.zeroGyro()
         }).ignoringDisable(true))
 
-        joystickLeft.button(16).onTrue(Commands.runOnce({
-            println("Zeroing gyro.")
-            Drivetrain.zeroGyro(offset = Rotation2d.fromDegrees(-60.0))
-        }).ignoringDisable(true))
+//        joystickLeft.button(16).onTrue(Commands.runOnce({
+//            println("Zeroing gyro.")
+//            Drivetrain.zeroGyro(offset = Rotation2d.fromDegrees(-60.0))
+//        }).ignoringDisable(true))
     }
 
     /** Add data to the driver station dashboard. */

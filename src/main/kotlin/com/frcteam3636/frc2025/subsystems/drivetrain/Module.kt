@@ -119,7 +119,7 @@ interface DrivingMotor {
     var velocity: LinearVelocity
     fun setVoltage(voltage: Voltage)
 }
-
+//This is a Kraken
 class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 
     private val inner = TalonFX(id).apply {
@@ -162,6 +162,7 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
     }
 }
 
+//This is a Neo
 class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
     private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
         val innerConfig = SparkMaxConfig().apply {
