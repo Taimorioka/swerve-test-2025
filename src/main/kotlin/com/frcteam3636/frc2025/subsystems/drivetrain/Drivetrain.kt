@@ -252,24 +252,25 @@ object Drivetrain : Subsystem, Sendable {
     }
 
     private fun isInDeadband(translation: Translation2d) =
-        abs(translation.x) < JOYSTICK_DEADBAND && abs(translation.y) < JOYSTICK_DEADBAND
+        abs(translation.x) <= JOYSTICK_DEADBAND && abs(translation.y) <= JOYSTICK_DEADBAND
 
     private fun drive(translationInput: Translation2d, rotationInput: Translation2d) {
         if (isInDeadband(translationInput) && isInDeadband(rotationInput)) {
             // No joystick input - stop moving!
             desiredModuleStates = BRAKE_POSITION
         } else {
+            Logger.recordOutput("/Drivetrain/Drive", translationInput.x)
             desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
                 calculateInputCurve(translationInput.x) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
                 calculateInputCurve(translationInput.y) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                rotationInput.y * TAU * ROTATION_SENSITIVITY,
+                rotationInput.x * TAU * ROTATION_SENSITIVITY,
                 estimatedPose.rotation
             )
         }
     }
 
     private fun calculateInputCurve(input: Double): Double {
-        val exponent = 1.7
+        val exponent = 1.0
 
         return input.absoluteValue.pow(exponent).withSign(input)
     }
@@ -284,7 +285,7 @@ object Drivetrain : Subsystem, Sendable {
     fun driveWithController(controller: CommandXboxController): Command =
         run {
             val translationInput = Translation2d(controller.leftX, controller.leftY)
-            val rotationInput = Translation2d(controller.rightX, controller.rightY)
+            val rotationInput = Translation2d(controller.rightX, 0.0)
 
             drive(translationInput, rotationInput)
         }
@@ -294,35 +295,35 @@ object Drivetrain : Subsystem, Sendable {
     }
 
     @Suppress("unused")
-    fun driveAlignedTo(translationJoystick: Joystick, targetGetter: () -> Translation2d): Command {
-
-        return runEnd({
-            val target = targetGetter()
-
-            Logger.recordOutput("Drivetrain/Auto-align Target", target)
-            val translationInput = if (abs(translationJoystick.x) > JOYSTICK_DEADBAND
-                || abs(translationJoystick.y) > JOYSTICK_DEADBAND
-            ) {
-                Translation2d(-translationJoystick.y, -translationJoystick.x)
-            } else {
-                Translation2d()
-            }
-            val magnitude = rotationPIDController.calculate(
-                target.minus(estimatedPose.translation).angle.radians - (TAU / 2),
-                estimatedPose.rotation.radians
-            )
-
-            desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
-                translationInput.x * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                translationInput.y * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                -magnitude,
-                estimatedPose.rotation
-            )
-        }, {
-            // Might be worth testing this but AdvantageScope seems to ignore `null`s
-            Logger.recordOutput("Drivetrain/Auto-align Target", Translation2d())
-        })
-    }
+//    fun driveAlignedTo(translationJoystick: Joystick, targetGetter: () -> Translation2d): Command {
+//
+//        return runEnd({
+//            val target = targetGetter()
+//
+//            Logger.recordOutput("Drivetrain/Auto-align Target", target)
+//            val translationInput = if (abs(translationJoystick.x) > JOYSTICK_DEADBAND
+//                || abs(translationJoystick.y) > JOYSTICK_DEADBAND
+//            ) {
+//                Translation2d(-translationJoystick.y, -translationJoystick.x)
+//            } else {
+//                Translation2d()
+//            }
+//            val magnitude = rotationPIDController.calculate(
+//                target.minus(estimatedPose.translation).angle.radians - (TAU / 2),
+//                estimatedPose.rotation.radians
+//            )
+//
+//            desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+//                translationInput.x * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
+//                translationInput.y * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
+//                -magnitude,
+//                estimatedPose.rotation
+//            )
+//        }, {
+//            // Might be worth testing this but AdvantageScope seems to ignore `null`s
+//            Logger.recordOutput("Drivetrain/Auto-align Target", Translation2d())
+//        })
+//    }
 
     /**
      * Drive to a pose on the field.
@@ -371,7 +372,7 @@ object Drivetrain : Subsystem, Sendable {
         const val TRANSLATION_SENSITIVITY = 1.0 // FIXME: Increase
 
         /** Unit: Rotations per second */
-        const val ROTATION_SENSITIVITY = 0.8
+        const val ROTATION_SENSITIVITY = 10.0
 
         val WHEEL_BASE = 30.inches
         val TRACK_WIDTH = 28.inches

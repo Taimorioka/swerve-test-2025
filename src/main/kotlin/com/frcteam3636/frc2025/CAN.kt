@@ -11,14 +11,14 @@ import com.revrobotics.spark.SparkMax
 
 enum class REVMotorControllerId(val num: Int) {
     FrontLeftTurningMotor(5),
-    BackLeftTurningMotor(6),
+    BackLeftTurningMotor(8),
     BackRightTurningMotor(7),
-    FrontRightTurningMotor(8),
+    FrontRightTurningMotor(6),
 
     FrontLeftDrivingMotor(1),
-    BackLeftDrivingMotor(2),
+    BackLeftDrivingMotor(4),
     BackRightDrivingMotor(3),
-    FrontRightDrivingMotor(4),
+    FrontRightDrivingMotor(2),
 
     ManipulatorLaserCAN(21),
 }

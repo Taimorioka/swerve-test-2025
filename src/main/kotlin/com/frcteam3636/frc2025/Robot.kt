@@ -198,11 +198,11 @@ object Robot : LoggedRobot() {
 
     override fun robotPeriodic() {
         Dashboard.update()
-        reportDiagnostics()
+//        reportDiagnostics()
 
         CommandScheduler.getInstance().run()
 
-        Diagnostics.send()
+//        Diagnostics.send()
     }
 
     override fun autonomousInit() {

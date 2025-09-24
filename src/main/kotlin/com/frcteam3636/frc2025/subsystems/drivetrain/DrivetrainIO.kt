@@ -74,7 +74,7 @@ abstract class DrivetrainIO {
 class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : DrivetrainIO() {
     override val gyro = when (Robot.model) {
         Robot.Model.SIMULATION -> GyroSim(modules)
-        Robot.Model.COMPETITION -> GyroPigeon(Pigeon2(CTREDeviceId.PigeonGyro))
+        Robot.Model.COMPETITION -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
         Robot.Model.PROTOTYPE -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
     }
 
