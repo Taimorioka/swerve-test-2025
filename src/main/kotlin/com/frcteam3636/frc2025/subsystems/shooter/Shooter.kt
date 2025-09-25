@@ -8,6 +8,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode
 import com.revrobotics.spark.config.SparkMaxConfig
 import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.Subsystem
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController
 
 object Shooter: Subsystem {
 
@@ -28,11 +29,15 @@ object Shooter: Subsystem {
         }
         configure(innerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
     }
+    override fun periodic(){
 
-    fun spinUp(multiplier: Double): Command =startEnd(
+    }
+
+    fun spinUp(controller: CommandXboxController): Command =startEnd(
         {
-            motor1.setVoltage(12.0 * multiplier)
-            motor2.setVoltage(12.0 * multiplier)
+//            var multiplier: Double = controller.leftX
+            motor1.setVoltage(12.0 * -0.75)
+            motor2.setVoltage(12.0 * -0.75)
         },
         {
             motor1.setVoltage(0.0)
