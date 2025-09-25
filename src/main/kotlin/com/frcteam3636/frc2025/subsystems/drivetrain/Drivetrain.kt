@@ -44,6 +44,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import org.littletonrobotics.junction.Logger
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -252,7 +253,7 @@ object Drivetrain : Subsystem, Sendable {
     }
 
     private fun isInDeadband(translation: Translation2d) =
-        abs(translation.x) <= JOYSTICK_DEADBAND || abs(translation.y) <= JOYSTICK_DEADBAND
+        abs(translation.x) <= JOYSTICK_DEADBAND && abs(translation.y) <= JOYSTICK_DEADBAND
 
     private fun drive(translationInput: Translation2d, rotationInput: Translation2d) {
         if (isInDeadband(translationInput) && isInDeadband(rotationInput)) {
@@ -502,7 +503,7 @@ object Drivetrain : Subsystem, Sendable {
             )
 
         /** A position with the modules radiating outwards from the center of the robot, preventing movement. */
-        val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle) }
+        val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle + Rotation2d(PI/2)) }
 
         val QUESTNAV_DEVICE_OFFSET = Transform2d(
             // TODO: find these constants
