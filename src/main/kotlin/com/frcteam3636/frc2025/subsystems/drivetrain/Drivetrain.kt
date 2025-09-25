@@ -247,12 +247,12 @@ object Drivetrain : Subsystem, Sendable {
         builder.addDoubleProperty("Back Left Angle", { io.modules.backLeft.state.angle.radians }, null)
         builder.addDoubleProperty("Back Left Velocity", { io.modules.backLeft.state.speedMetersPerSecond }, null)
 
-        builder.addDoubleProperty("Back Right Angle", { io.modules.backLeft.state.angle.radians }, null)
-        builder.addDoubleProperty("Back Right Velocity", { io.modules.backLeft.state.speedMetersPerSecond }, null)
+        builder.addDoubleProperty("Back Right Angle", { io.modules.backRight.state.angle.radians }, null)
+        builder.addDoubleProperty("Back Right Velocity", { io.modules.backRight.state.speedMetersPerSecond }, null)
     }
 
     private fun isInDeadband(translation: Translation2d) =
-        abs(translation.x) < JOYSTICK_DEADBAND && abs(translation.y) < JOYSTICK_DEADBAND
+        abs(translation.x) < JOYSTICK_DEADBAND || abs(translation.y) < JOYSTICK_DEADBAND
 
     private fun drive(translationInput: Translation2d, rotationInput: Translation2d) {
         if (isInDeadband(translationInput) && isInDeadband(rotationInput)) {
@@ -262,7 +262,7 @@ object Drivetrain : Subsystem, Sendable {
             desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
                 calculateInputCurve(translationInput.x) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
                 calculateInputCurve(translationInput.y) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                rotationInput.y * TAU * ROTATION_SENSITIVITY,
+                calculateInputCurve(rotationInput.y) * TAU * ROTATION_SENSITIVITY,
                 estimatedPose.rotation
             )
         }
@@ -383,16 +383,16 @@ object Drivetrain : Subsystem, Sendable {
 
         val MODULE_POSITIONS = PerCorner(
             frontLeft = Pose2d(
-                Translation2d(WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(0.0)
+                Translation2d(WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(45.0)
             ),
             frontRight = Pose2d(
-                Translation2d(WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(270.0)
+                Translation2d(WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(315.0)
             ),
             backLeft = Pose2d(
-                Translation2d(-WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(90.0)
+                Translation2d(-WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(135.0)
             ),
             backRight = Pose2d(
-                Translation2d(-WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(180.0)
+                Translation2d(-WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(225.0)
             ),
         )
 
