@@ -102,7 +102,7 @@ class MAXSwerveModule(
             // optimize the state to avoid rotating more than 90 degrees
             val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningEncoder.position))
 
-            drivingMotor.velocity = optimize.speed.metersPerSecond
+            drivingMotor.velocity = optimized.speed
 
             turningPIDController.setReference(
                 corrected.angle.radians, SparkBase.ControlType.kPosition

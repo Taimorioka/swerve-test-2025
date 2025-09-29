@@ -269,18 +269,23 @@ object Drivetrain : Subsystem, Sendable {
             desiredModuleStates = BRAKE_POSITION
         } else {
             Logger.recordOutput("/Drivetrain/Drive", translationInput.x)
+
+            val realX = calculateInputCurve(translationInput.x) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY
+            val realY = calculateInputCurve(translationInput.y) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY
+            val realRot = calculateInputCurve(rotationInput) * TAU * ROTATION_SENSITIVITY
+
             desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
-                calculateInputCurve(translationInput.x) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                calculateInputCurve(translationInput.y) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                calculateInputCurve(rotationInput) * TAU * ROTATION_SENSITIVITY,
+                realX,
+                realY,
+                realRot,
                 estimatedPose.rotation
             )
-        }
 
-        // More testing
-        Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationX", deadbandedX)
-        Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationY", deadbandedY)
-        Logger.recordOutput("Drivetrain/ProcessedInputs/Rotation", deadbandedRot)
+            // More testing
+            Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationX", realX)
+            Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationY", realY)
+            Logger.recordOutput("Drivetrain/ProcessedInputs/Rotation", realRot)
+        }
     }
 
     private fun calculateInputCurve(input: Double): Double {
@@ -289,32 +294,20 @@ object Drivetrain : Subsystem, Sendable {
         return input.absoluteValue.pow(exponent).withSign(input)
     }
 
-    fun driveWithJoysticks(translationJoystick: Joystick, rotationJoystick: Joystick): Command =
-        run {
-            // Directly accessing Joystick.x/y gives inverted values - use a `Translation2d` instead.
-            drive(translationJoystick.fieldRelativeTranslation2d, rotationJoystick.translation2d)
-        }
+//    fun driveWithJoysticks(translationJoystick: Joystick, rotationJoystick: Joystick): Command =
+//        run {
+//            // Directly accessing Joystick.x/y gives inverted values - use a `Translation2d` instead.
+//            drive(translationJoystick.fieldRelativeTranslation2d, rotationJoystick.translation2d)
+//        }
 
     @Suppress("unused")
     fun driveWithController(controller: CommandXboxController): Command =
         run {
-            val translationInput = Translation2d(controller.leftX, controller.leftY)
-            val rotationInput = Translation2d(controller.rightX, 0.0)
+            val translationInput = Translation2d(-1 *  controller.leftX, controller.leftY)
+            val rotationInput = controller.rightX
 
             drive(translationInput, rotationInput)
         }
-
-    fun testModules(): Command = Commands.run({
-    // Test each module individually
-    val testTime = 2.seconds
-    val testStates = PerCorner(
-        frontLeft = SwerveModuleState(0.5.metersPerSecond, 0.degrees),
-        frontRight = SwerveModuleState(0.5.metersPerSecond, 0.degrees), 
-        backLeft = SwerveModuleState(0.5.metersPerSecond, 0.degrees),
-        backRight = SwerveModuleState(0.5.metersPerSecond, 0.degrees)
-    )
-    desiredModuleStates = testStates
-    }).withTimeout(testTime)
 
     private val rotationPIDController = PIDController(ROTATION_PID_GAINS).apply {
         enableContinuousInput(0.0, TAU)
