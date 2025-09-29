@@ -255,7 +255,15 @@ object Drivetrain : Subsystem, Sendable {
     private fun isInDeadband(translation: Translation2d) =
         abs(translation.x) <= JOYSTICK_DEADBAND && abs(translation.y) <= JOYSTICK_DEADBAND
 
-    private fun drive(translationInput: Translation2d, rotationInput: Translation2d) {
+    private fun isInDeadband(translation: Double) = abs(translation) <= JOYSTICK_DEADBAND
+
+    private fun drive(translationInput: Translation2d, rotationInput: Double) {
+
+        // Testing
+        Logger.recordOutput("Drivetrain/RawInputs/TranslationX", translationInput.x)
+        Logger.recordOutput("Drivetrain/RawInputs/TranslationY", translationInput.y)
+        Logger.recordOutput("Drivetrain/RawInputs/Rotation", rotationInput)
+
         if (isInDeadband(translationInput) && isInDeadband(rotationInput)) {
             // No joystick input - stop moving!
             desiredModuleStates = BRAKE_POSITION
@@ -264,10 +272,15 @@ object Drivetrain : Subsystem, Sendable {
             desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
                 calculateInputCurve(translationInput.x) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
                 calculateInputCurve(translationInput.y) * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-                calculateInputCurve(rotationInput.x) * TAU * ROTATION_SENSITIVITY,
+                calculateInputCurve(rotationInput) * TAU * ROTATION_SENSITIVITY,
                 estimatedPose.rotation
             )
         }
+
+        // More testing
+        Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationX", deadbandedX)
+        Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationY", deadbandedY)
+        Logger.recordOutput("Drivetrain/ProcessedInputs/Rotation", deadbandedRot)
     }
 
     private fun calculateInputCurve(input: Double): Double {
@@ -291,11 +304,23 @@ object Drivetrain : Subsystem, Sendable {
             drive(translationInput, rotationInput)
         }
 
+    fun testModules(): Command = Commands.run({
+    // Test each module individually
+    val testTime = 2.seconds
+    val testStates = PerCorner(
+        frontLeft = SwerveModuleState(0.5.metersPerSecond, 0.degrees),
+        frontRight = SwerveModuleState(0.5.metersPerSecond, 0.degrees), 
+        backLeft = SwerveModuleState(0.5.metersPerSecond, 0.degrees),
+        backRight = SwerveModuleState(0.5.metersPerSecond, 0.degrees)
+    )
+    desiredModuleStates = testStates
+    }).withTimeout(testTime)
+
     private val rotationPIDController = PIDController(ROTATION_PID_GAINS).apply {
         enableContinuousInput(0.0, TAU)
     }
 
-    @Suppress("unused")
+    // @Suppress("unused")
 //    fun driveAlignedTo(translationJoystick: Joystick, targetGetter: () -> Translation2d): Command {
 //
 //        return runEnd({
@@ -345,7 +370,7 @@ object Drivetrain : Subsystem, Sendable {
         }
 
         estimatedPose = Pose2d(estimatedPose.translation, zeroPos + offset)
-//        io.setGyro(zeroPos)
+    //    io.setGyro(zeroPos)
     }
 
     var sysID = SysIdRoutine(
@@ -385,16 +410,16 @@ object Drivetrain : Subsystem, Sendable {
 
         val MODULE_POSITIONS = PerCorner(
             frontLeft = Pose2d(
-                Translation2d(WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(45.0)
+                Translation2d(WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(0.0)
             ),
             frontRight = Pose2d(
-                Translation2d(WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(315.0)
+                Translation2d(WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(270.0)
             ),
             backLeft = Pose2d(
-                Translation2d(-WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(135.0)
+                Translation2d(-WHEEL_BASE, TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(90.0)
             ),
             backRight = Pose2d(
-                Translation2d(-WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(225.0)
+                Translation2d(-WHEEL_BASE, -TRACK_WIDTH) / 2.0, Rotation2d.fromDegrees(180.0)
             ),
         )
 
@@ -503,7 +528,7 @@ object Drivetrain : Subsystem, Sendable {
             )
 
         /** A position with the modules radiating outwards from the center of the robot, preventing movement. */
-        val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle + Rotation2d(PI/2)) }
+        val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle) }
 
         val QUESTNAV_DEVICE_OFFSET = Transform2d(
             // TODO: find these constants

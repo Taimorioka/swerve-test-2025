@@ -94,23 +94,21 @@ class MAXSwerveModule(
         turningPIDController.setReference(-chassisAngle.radians, SparkBase.ControlType.kPosition)
     }
 
-    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, -chassisAngle)
+    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
         get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
         set(value) {
+            //corrected means module-relative angle
             val corrected = SwerveModuleState(value.speedMetersPerSecond, value.angle - chassisAngle)
             // optimize the state to avoid rotating more than 90 degrees
-            corrected.optimize(
-                Rotation2d.fromRadians(turningEncoder.position)
-            )
+            val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningEncoder.position))
 
-            drivingMotor.velocity = corrected.speed
+            drivingMotor.velocity = optimize.speed.metersPerSecond
 
             turningPIDController.setReference(
                 corrected.angle.radians, SparkBase.ControlType.kPosition
             )
 
-
-            field = corrected
+            field = optimized
         }
 }
 
