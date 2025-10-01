@@ -303,7 +303,7 @@ object Drivetrain : Subsystem, Sendable {
     @Suppress("unused")
     fun driveWithController(controller: CommandXboxController): Command =
         run {
-            val translationInput = Translation2d(-1 *  controller.leftX, controller.leftY)
+            val translationInput = Translation2d(controller.leftY, controller.leftX)
             val rotationInput = controller.rightX
 
             drive(translationInput, rotationInput)
