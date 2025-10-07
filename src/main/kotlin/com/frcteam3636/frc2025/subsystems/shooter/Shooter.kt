@@ -16,7 +16,7 @@ object Shooter: Subsystem {
         val innerConfig = SparkMaxConfig().apply {
             idleMode(IdleMode.kBrake)
             smartCurrentLimit(37)
-            inverted(false)
+            inverted(true)
         }
         configure(innerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
     }
@@ -25,7 +25,7 @@ object Shooter: Subsystem {
         val innerConfig = SparkMaxConfig().apply {
             idleMode(IdleMode.kBrake)
             smartCurrentLimit(37)
-            inverted(true)
+            inverted(false)
         }
         configure(innerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
     }
@@ -33,11 +33,10 @@ object Shooter: Subsystem {
 
     }
 
-    fun spinUp(controller: CommandXboxController): Command =startEnd(
+    fun spinUp(): Command =startEnd(
         {
-//            var multiplier: Double = controller.leftX
-            motor1.setVoltage(12.0 * -0.75)
-            motor2.setVoltage(12.0 * -0.75)
+            motor1.setVoltage(12.0 * 0.75)
+            motor2.setVoltage(12.0 * 0.75)
         },
         {
             motor1.setVoltage(0.0)

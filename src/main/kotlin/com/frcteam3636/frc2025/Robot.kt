@@ -157,7 +157,7 @@ object Robot : LoggedRobot() {
 //            println("Zeroing gyro.")
 //            Drivetrain.zeroGyro()
 //        }).ignoringDisable(true))
-            Shooter.defaultCommand = Shooter.spinUp(controller)
+            Shooter.defaultCommand = Shooter.spinUp()
 
 //        joystickLeft.button(16).onTrue(Commands.runOnce({
 //            println("Zeroing gyro.")
