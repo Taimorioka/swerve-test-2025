@@ -1,8 +1,12 @@
 package com.frcteam3636.frc2025.subsystems.drivetrain
 
+import com.ctre.phoenix6.BaseStatusSignal
+import com.ctre.phoenix6.configs.CANcoderConfiguration
 import com.ctre.phoenix6.configs.TalonFXConfiguration
+import com.ctre.phoenix6.controls.PositionVoltage
 import com.ctre.phoenix6.controls.VelocityVoltage
 import com.ctre.phoenix6.controls.VoltageOut
+import com.ctre.phoenix6.signals.*
 import com.frcteam3636.frc2025.*
 import com.frcteam3636.frc2025.utils.math.*
 import com.frcteam3636.frc2025.utils.swerve.speed
@@ -16,7 +20,9 @@ import com.revrobotics.spark.config.SparkMaxConfig
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
+import edu.wpi.first.units.Units.Radians
 import edu.wpi.first.units.Units.Volts
+import edu.wpi.first.units.measure.Angle
 import edu.wpi.first.units.measure.Distance
 import edu.wpi.first.units.measure.LinearVelocity
 import edu.wpi.first.units.measure.Voltage
@@ -70,7 +76,7 @@ class Mk5nSwerveModule(
 
             drivingMotor.velocity = optimized.speed
 
-            turningMotor/position = corrected.angle.radians
+            turningMotor.position = corrected.angle.radians.radians
 
             field = optimized
         }
@@ -94,7 +100,7 @@ class MAXSwerveModule( private val drivingMotor: DrivingMotor, turningId: REVMot
             }
 
             closedLoop.apply {
-                pid(TURNING_PID_GAINS.p, TURNING_PID_GAINS.i, TURNING_PID_GAINS.d)
+                pid(TURNING_PID_GAINS_SPARK.p, TURNING_PID_GAINS_SPARK.i, TURNING_PID_GAINS_SPARK.d)
                 feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
                 positionWrappingEnabled(true)
                 positionWrappingMinInput(0.0)
@@ -229,7 +235,7 @@ class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
     }
 
     override val position: Distance
-        get() = inner.encoder.position.meters
+        get() = inner.absoluteEncoder.position.meters
 
     override var velocity: LinearVelocity
         get() = inner.encoder.velocity.metersPerSecond
@@ -248,8 +254,8 @@ class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Doub
     private val inner = TalonFX(id).apply {
         configurator.apply(TalonFXConfiguration().apply {
             Slot0.apply {
-                pidGains = TURNING_PID_GAINS
-                motorFFGains = TURNING_FF_GAINS
+                pidGains = TURNING_PID_GAINS_TALON
+                motorFFGains = TURNING_FF_GAINS_TALON
                 MotorOutput.apply {
                     NeutralMode = NeutralModeValue.Brake
                 }
@@ -290,25 +296,29 @@ class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Doub
     override fun getSignals(): Array<BaseStatusSignal> {
         return arrayOf(inner.getPosition(false))
     }
-
-    private val positonControl = PositionVoltage(0.0).apply {
-        EnableFOC = true
-    }
 }
 
 class TurningSparkMax(id: REVMotorControllerId): TurningMotor{
 
-    private val inner = TalonFX(id).apply {
-        configurator.apply(TalonFXConfiguration().apply {
-            Slot0.apply {
-                pidGains = TURNING_PID_GAINS_TALON
-                motorFFGains = TURNING_FF_GAINS_TALON
+    private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
+        configure(SparkMaxConfig().apply {
+            idleMode(IdleMode.kBrake)
+            smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
+
+            absoluteEncoder.apply {
+                inverted(true)
+                positionConversionFactor(TAU)
+                velocityConversionFactor(TAU / 60)
             }
-            CurrentLimits.apply {
-                SupplyCurrentLimit = DRIVING_CURRENT_LIMIT.inAmps()
-                SupplyCurrentLimitEnable = true
+
+            closedLoop.apply {
+                pid(TURNING_PID_GAINS_SPARK.p, TURNING_PID_GAINS_SPARK.i, TURNING_PID_GAINS_SPARK.d)
+                feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
+                positionWrappingEnabled(true)
+                positionWrappingMinInput(0.0)
+                positionWrappingMaxInput(TAU)
             }
-        })
+        }, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
     }
 
     override var position: Angle
@@ -317,7 +327,7 @@ class TurningSparkMax(id: REVMotorControllerId): TurningMotor{
 
         }
 
-    fun getSignals(): Array<BaseStatusSignal>{
+    override fun getSignals(): Array<BaseStatusSignal>{
         return arrayOf()
     }
 
@@ -337,7 +347,7 @@ class SimSwerveModule(val sim: SwerveModuleSimulation) : SwerveModule {
     private val drivingFeedforward = SimpleMotorFeedforward(DRIVING_FF_GAINS_TALON)
     private val drivingFeedback = PIDController(DRIVING_PID_GAINS_TALON)
 
-    private val turningFeedback = PIDController(TURNING_PID_GAINS).apply { enableContinuousInput(0.0, TAU) }
+    private val turningFeedback = PIDController(TURNING_PID_GAINS_SPARK).apply { enableContinuousInput(0.0, TAU) }
 
     override val state: SwerveModuleState
         get() = SwerveModuleState(
@@ -388,15 +398,20 @@ private const val DRIVING_MOTOR_PINION_TEETH = 14
 internal const val DRIVING_GEAR_RATIO_TALON = 1.0 / 3.56
 const val DRIVING_GEAR_RATIO = (45.0 * 22.0) / (DRIVING_MOTOR_PINION_TEETH * 15.0)
 
+const val TURNING_CANCODER_TO_MECHANISM_RATIO = 1.0
+const val TURNING_MOTOR_TO_MECHANISM_RATIO = 1.0
+
 internal val NEO_DRIVING_FREE_SPEED = NEO_FREE_SPEED.toLinear(WHEEL_CIRCUMFERENCE) / DRIVING_GEAR_RATIO
 
 internal val DRIVING_PID_GAINS_TALON: PIDGains = PIDGains(.19426, 0.0)
 internal val DRIVING_PID_GAINS_NEO: PIDGains = PIDGains(0.04, 0.0, 0.0)
 internal val DRIVING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.22852, 0.1256, 0.022584)
-internal val DRIVING_FF_GAINS_NEO: MotorFFGains =
-    MotorFFGains(0.0, 1 / NEO_DRIVING_FREE_SPEED.inMetersPerSecond(), 0.0) // TODO: ensure this is right
+internal val DRIVING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.0, 1 / NEO_DRIVING_FREE_SPEED.inMetersPerSecond(), 0.0) // TODO: ensure this is right
 
-internal val TURNING_PID_GAINS: PIDGains = PIDGains(1.7, 0.0, 0.125)
-internal val TURNING_FF_GAINS: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+internal val TURNING_PID_GAINS_SPARK: PIDGains = PIDGains(1.7, 0.0, 0.125)
+internal val TURNING_FF_GAINS_SPARK: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+internal val TURNING_PID_GAINS_TALON: PIDGains = PIDGains(1.7, 0.0, 0.125)
+internal val TURNING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+
 internal val DRIVING_CURRENT_LIMIT = 37.amps
 internal val TURNING_CURRENT_LIMIT = 20.amps
