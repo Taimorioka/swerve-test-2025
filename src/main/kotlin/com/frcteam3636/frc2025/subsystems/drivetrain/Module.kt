@@ -48,6 +48,40 @@ interface SwerveModule {
     fun characterize(voltage: Voltage)
 }
 
+class Mk5nSwerveModule(
+    private val drivingMotor: DrivingMotor, turningMotor: TurningMotor, private val chassisAngle: Rotation2d
+) : SwerveModule {
+
+    override val state: SwerveModuleState
+        get() = SwerveModuleState(
+            drivingMotor.velocity.inMetersPerSecond(), Rotation2d.fromRadians(turningMotor.position.inRadians()) + chassisAngle
+        )
+
+    override val position: SwerveModulePosition
+        get() = SwerveModulePosition(
+            drivingMotor.position, Rotation2d.fromRadians(turningMotor.position.inRadians()) + chassisAngle
+        )
+
+    override fun characterize(voltage: Voltage) {
+        drivingMotor.setVoltage(voltage)
+        turningMotor.position = Radians.of(-chassisAngle.radians)
+
+    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
+        get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
+        set(value) {
+            //corrected means module-relative angle
+            val corrected = SwerveModuleState(value.speedMetersPerSecond, value.angle - chassisAngle)
+            // optimize the state to avoid rotating more than 90 degrees
+            val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningMotor.position.inRadians()))
+
+            drivingMotor.velocity = optimized.speed
+
+            turningMotor/position = corrected.angle.radians
+
+            field = optimized
+        }
+}
+
 class MAXSwerveModule(
     private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d
 ) : SwerveModule {
@@ -117,6 +151,14 @@ interface DrivingMotor {
     var velocity: LinearVelocity
     fun setVoltage(voltage: Voltage)
 }
+
+interface TurningMotor {
+    var position: Angle
+    fun getSignals(): Array<BaseStatusSignal> {
+        return arrayOf()
+    }
+}
+
 //This is a Kraken
 class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 
@@ -197,7 +239,56 @@ class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
     }
 }
 
-//
+class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Double): TurningMotor{
+
+    private val inner = TalonFX(id).apply {
+        configurator.apply(TalonFXConfiguration().apply {
+            Slot0.apply {
+                pidGains = TURNING_PID_GAINS
+                motorFFGains = TURNING_FF_GAINS
+                MotorOutput.apply {
+                    NeutralMode = NeutralModeValue.Brake
+                }
+                Feedback.apply {
+                    FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder
+                    SensorToMechanismRatio = TURNING_CANCODER_TO_MECHANISM_RATIO
+                    RotorToSensorRatio = TURNING_MOTOR_TO_MECHANISM_RATIO
+                    FeedbackRemoteSensorID = encoderId.num
+                }
+                CurrentLimits.apply {
+                    StatorCurrentLimit = TURNING_CURRENT_LIMIT.inAmps()
+                    StatorCurrentLimitEnable = true
+                }
+            }
+        })
+    }
+
+    init {
+        CANcoder(encoderId).apply {
+            configurator.apply(CANcoderConfiguration().apply {
+                MagnetSensor.MagnetOffset = magnetOffset
+            })    
+        }
+        BaseStatusSignal.setUpdateFrequencyForAll(100.0, inner.position)
+        inner.optimizeBusUtilization()
+
+         override var position: Angle
+        set(value) {
+            inner.setControl(positonControl.withPosition(value))
+        }
+        get() = inner.getPosition(false).value
+
+        override fun getSignals(): Array<BaseStatusSignal> {
+            return arrayOf(inner.getPosition(false))
+        }
+    }
+
+    private val positonControl = PositionVoltage(0.0).apply {
+        EnableFOC = true
+    }
+}
+
+
 class SimSwerveModule(val sim: SwerveModuleSimulation) : SwerveModule {
 
     private val driveMotor: SimulatedMotorController.GenericMotorController = sim.useGenericMotorControllerForDrive()
@@ -271,5 +362,6 @@ internal val DRIVING_FF_GAINS_NEO: MotorFFGains =
     MotorFFGains(0.0, 1 / NEO_DRIVING_FREE_SPEED.inMetersPerSecond(), 0.0) // TODO: ensure this is right
 
 internal val TURNING_PID_GAINS: PIDGains = PIDGains(1.7, 0.0, 0.125)
+internal val TURNING_FF_GAINS: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
 internal val DRIVING_CURRENT_LIMIT = 37.amps
 internal val TURNING_CURRENT_LIMIT = 20.amps
