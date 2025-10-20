@@ -26,31 +26,24 @@ import org.littletonrobotics.junction.Logger
 import kotlin.math.roundToInt
 
 interface SwerveModule {
-    // The current "state" of the swerve module.
-    //
-    // This is essentially the velocity of the wheel,
-    // and includes both the speed and the angle
+    // This includes the speed and the angle
     // in which the module is currently traveling.
     val state: SwerveModuleState
-
-    // The desired state of the module.
-    //
     // This is the wheel velocity that we're trying to get to.
     var desiredState: SwerveModuleState
-
     // The measured position of the module.
-    //
     // This is a vector with direction equal to the current angle of the module,
     // and magnitude equal to the total signed distance traveled by the wheel.
     val position: SwerveModulePosition
 
     fun periodic() {}
     fun characterize(voltage: Voltage)
+    fun getSignals(): Array<BaseStatusSignal> { return arrayOf()}
 }
 
 class Mk5nSwerveModule(
-    private val drivingMotor: DrivingMotor, turningMotor: TurningMotor, private val chassisAngle: Rotation2d
-) : SwerveModule {
+    private val drivingMotor: DrivingMotor,private val turningMotor: TurningMotor, private val chassisAngle: Rotation2d
+    ): SwerveModule {
 
     override val state: SwerveModuleState
         get() = SwerveModuleState(
@@ -65,6 +58,7 @@ class Mk5nSwerveModule(
     override fun characterize(voltage: Voltage) {
         drivingMotor.setVoltage(voltage)
         turningMotor.position = Radians.of(-chassisAngle.radians)
+    }
 
     override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
         get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
@@ -80,11 +74,14 @@ class Mk5nSwerveModule(
 
             field = optimized
         }
+
+    override fun getSignals(): Array<BaseStatusSignal> {
+        return turningMotor.getSignals() + drivingMotor.getSignals()
+    }
 }
 
-class MAXSwerveModule(
-    private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d
-) : SwerveModule {
+class MAXSwerveModule( private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d) : SwerveModule {
+
     private val turningSpark = SparkMax(turningId, SparkLowLevel.MotorType.kBrushless).apply {
         configure(SparkMaxConfig().apply {
             idleMode(IdleMode.kBrake)
@@ -150,6 +147,9 @@ interface DrivingMotor {
     val position: Distance
     var velocity: LinearVelocity
     fun setVoltage(voltage: Voltage)
+    fun getSignals(): Array<BaseStatusSignal> {
+        return arrayOf()
+    }
 }
 
 interface TurningMotor {
@@ -173,11 +173,11 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
                 SupplyCurrentLimitEnable = true
             }
         })
-
     }
 
     init {
-        Robot.statusSignals[id.name] = inner.version
+        BaseStatusSignal.setUpdateFrequencyForAll(100.0, inner.position, inner.velocity)
+        inner.optimizeBusUtilization()
     }
 
     override val position: Distance
@@ -199,6 +199,10 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 
     override fun setVoltage(voltage: Voltage) {
         inner.setControl(voltageControl.withOutput(voltage.inVolts()))
+    }
+
+    override fun getSignals(): Array<BaseStatusSignal> {
+        return arrayOf(inner.getPosition(false), inner.getVelocity(false))
     }
 }
 
@@ -271,21 +275,52 @@ class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Doub
         }
         BaseStatusSignal.setUpdateFrequencyForAll(100.0, inner.position)
         inner.optimizeBusUtilization()
+    }
 
-         override var position: Angle
+    override var position: Angle
+        get() = inner.getPosition(false).value
         set(value) {
             inner.setControl(positonControl.withPosition(value))
         }
-        get() = inner.getPosition(false).value
 
-        override fun getSignals(): Array<BaseStatusSignal> {
-            return arrayOf(inner.getPosition(false))
-        }
+    private val positonControl = PositionVoltage(0.0).apply {
+        EnableFOC = true
+    }
+
+    override fun getSignals(): Array<BaseStatusSignal> {
+        return arrayOf(inner.getPosition(false))
     }
 
     private val positonControl = PositionVoltage(0.0).apply {
         EnableFOC = true
     }
+}
+
+class TurningSparkMax(id: REVMotorControllerId): TurningMotor{
+
+    private val inner = TalonFX(id).apply {
+        configurator.apply(TalonFXConfiguration().apply {
+            Slot0.apply {
+                pidGains = TURNING_PID_GAINS_TALON
+                motorFFGains = TURNING_FF_GAINS_TALON
+            }
+            CurrentLimits.apply {
+                SupplyCurrentLimit = DRIVING_CURRENT_LIMIT.inAmps()
+                SupplyCurrentLimitEnable = true
+            }
+        })
+    }
+
+    override var position: Angle
+        get() = 
+        set(value) {
+
+        }
+
+    fun getSignals(): Array<BaseStatusSignal>{
+        return arrayOf()
+    }
+
 }
 
 
