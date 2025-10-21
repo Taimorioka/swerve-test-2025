@@ -107,16 +107,18 @@ interface TurningMotor {
 class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 
     private val inner = TalonFX(id).apply {
-        configurator.apply(TalonFXConfiguration().apply {
-            Slot0.apply {
-                pidGains = DRIVING_PID_GAINS_TALON
-                motorFFGains = DRIVING_FF_GAINS_TALON
+        configurator.apply(
+            TalonFXConfiguration().apply {
+                Slot0.apply {
+                    pidGains = DRIVING_PID_GAINS_TALON
+                    motorFFGains = DRIVING_FF_GAINS_TALON
+                }
+                CurrentLimits.apply {
+                    SupplyCurrentLimit = DRIVING_CURRENT_LIMIT.inAmps()
+                    SupplyCurrentLimitEnable = true
+                }
             }
-            CurrentLimits.apply {
-                SupplyCurrentLimit = DRIVING_CURRENT_LIMIT.inAmps()
-                SupplyCurrentLimitEnable = true
-            }
-        })
+        )
     }
 
     init {
@@ -153,6 +155,7 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 
 //This is a Neo
 class DrivingSparkMAX(private val id: REVMotorControllerId) : DrivingMotor {
+    
     private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
         val innerConfig = SparkMaxConfig().apply {
             idleMode(IdleMode.kBrake)
@@ -348,7 +351,7 @@ internal const val DRIVING_GEAR_RATIO_TALON = 1.0 / 3.56
 private const val DRIVING_MOTOR_PINION_TEETH = 14
 const val DRIVING_GEAR_RATIO_NEO = (45.0 * 22.0) / (DRIVING_MOTOR_PINION_TEETH * 15.0)
 
-const val TURNING_CANCODER_TO_MECHANISM_RATIO = 1.0
+const val TURNING_CANCODER_TO_MECHANISM_RATIO = 1.0 // TODO: Fix values
 const val TURNING_MOTOR_TO_MECHANISM_RATIO = 1.0
 
 internal val NEO_FREE_SPEED = 5676.rpm
@@ -362,7 +365,7 @@ internal val DRIVING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.0, 1 / NEO_DRIV
 internal val TURNING_PID_GAINS_NEO: PIDGains = PIDGains(1.7, 0.0, 0.125)
 internal val TURNING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0) // TODO: I'm pretty sure we want only a PID controller on a turning motor
 internal val TURNING_PID_GAINS_TALON: PIDGains = PIDGains(1.7, 0.0, 0.125)
-internal val TURNING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+internal val TURNING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0) // TODO: fix values
 
 internal val DRIVING_CURRENT_LIMIT = 37.amps
 internal val TURNING_CURRENT_LIMIT = 20.amps
