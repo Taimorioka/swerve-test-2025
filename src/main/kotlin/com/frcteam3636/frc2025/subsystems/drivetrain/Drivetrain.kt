@@ -75,7 +75,7 @@ object Drivetrain : Subsystem, Sendable {
         )
     }.mapValues { Pair(it.value, AbsolutePoseProviderInputs()) }
 
-    /** Helper for converting a desired drivetrain velocity into the speeds and angles for each swerve module */
+    // Helper for converting a desired drivetrain velocity into the speeds and angles for each swerve module
     private val kinematics =
         SwerveDriveKinematics(
             *Constants.MODULE_POSITIONS
@@ -83,10 +83,10 @@ object Drivetrain : Subsystem, Sendable {
                 .toTypedArray()
         )
 
-    /** Helper for estimating the location of the drivetrain on the field */
+    // Helper for estimating the location of the drivetrain on the field
     private val poseEstimator =
         SwerveDrivePoseEstimator(
-            kinematics, // swerve drive kinematics
+            kinematics, 
             inputs.gyroRotation, // initial gyro rotation
             inputs.measuredPositions.toTypedArray(), // initial module positions
             Pose2d(), // initial pose
@@ -94,7 +94,7 @@ object Drivetrain : Subsystem, Sendable {
             VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(10.0))
         )
 
-    /** Whether every sensor used for pose estimation is connected. */
+    // Whether every sensor used for pose estimation is connected.
     val allPoseProvidersConnected
         get() = absolutePoseIOs.values.all { it.second.connected }
 
@@ -183,7 +183,7 @@ object Drivetrain : Subsystem, Sendable {
                 .toTypedArray())
     }
 
-    /** The desired speeds and angles of the swerve modules. */
+    // The desired speeds and angles of the swerve modules.
     private var desiredModuleStates
         get() = io.desiredStates
         set(value) {
@@ -196,17 +196,12 @@ object Drivetrain : Subsystem, Sendable {
             }
         }
 
-    /**
-     * The current speed of chassis relative to the ground,
-     * assuming that the wheels have perfect traction with the ground.
-     */
+    // The current speed of chassis relative to the ground 
+    // assumes that the wheels have perfect traction with the ground.
     val measuredChassisSpeeds get() = kinematics.cornerStatesToChassisSpeeds(inputs.measuredStates)
 
-    /**
-     * The chassis speeds that the drivetrain is attempting to move at.
-     *
-     * Note that the speeds are relative to the chassis, not the field.
-     */
+    // The chassis speeds that the drivetrain is attempting to move at.
+    // Note that the speeds are relative to the chassis, not the field.
     private var desiredChassisSpeeds
         get() = kinematics.cornerStatesToChassisSpeeds(desiredModuleStates)
         set(value) {
@@ -217,7 +212,6 @@ object Drivetrain : Subsystem, Sendable {
     val localizer: Localizer
         get() = Localizer.PoseEstimator
 
-    /** The estimated pose of the robot on the field, using the yaw value measured by the gyro. */
     var estimatedPose: Pose2d
         get() = poseEstimator.estimatedPosition
 
@@ -332,11 +326,11 @@ object Drivetrain : Subsystem, Sendable {
     }.withTimeout(1.0).andThen(sysID.dynamic(direction))!!
 
     internal object Constants {
-        // Translation/rotation coefficient for teleoperated driver controls
-        /** Unit: Percent of max robot speed */
-        const val TRANSLATION_SENSITIVITY = 1.0 // FIXME: Increase
 
-        /** Unit: Rotations per second */
+        // Unit: Percent of max robot speed
+        const val TRANSLATION_SENSITIVITY = 1.0 
+
+        //Unit: Rotations per second
         const val ROTATION_SENSITIVITY = 1.0
 
         val WHEEL_BASE = 30.inches
@@ -495,7 +489,7 @@ object Drivetrain : Subsystem, Sendable {
                     ),
             )
 
-        /** A position with the modules radiating outwards from the center of the robot, preventing movement. */
+        // A position with the modules radiating outwards from the center of the robot, preventing movement.
         val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle) }
 
         val ALIGN_TRANSLATION_PID_GAINS = PIDGains(5.0)
