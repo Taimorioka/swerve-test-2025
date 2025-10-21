@@ -1,6 +1,7 @@
 package com.frcteam3636.frc2025.subsystems.drivetrain
 
 import com.frcteam3636.frc2025.Diagnostics
+import com.frcteam3636.frc2025.Pigeon2
 import com.frcteam3636.frc2025.Robot
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.BUMPER_LENGTH
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.BUMPER_WIDTH
@@ -66,13 +67,23 @@ abstract class DrivetrainIO {
             module.characterize(voltage)
         }
     }
+
+    fun getStatusSignals(): MutableList<BaseStatusSignal> {
+        val signals = mutableListOf<BaseStatusSignal>()
+
+        modules.forEach { module ->
+            signals += module.getSignals()
+        }
+        signals += gyro.getStatusSignals()
+        return signals
+    }
 }
 
-/** Drivetrain I/O layer that uses real swerve modules along with a NavX gyro. */
 class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : DrivetrainIO() {
+
     override val gyro = when (Robot.model) {
         Robot.Model.SIMULATION -> GyroSim(modules)
-        Robot.Model.COMPETITION -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
+        Robot.Model.COMPETITION -> GyroPigeon(Pigeon2(CTREDeviceId.PigeonGyro))
         Robot.Model.PROTOTYPE -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
     }
 

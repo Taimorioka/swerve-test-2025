@@ -52,11 +52,10 @@ object Drivetrain : Subsystem, Sendable {
     }
     val inputs = LoggedDrivetrainInputs()
 
-    private val mt2Algo = LimelightAlgorithm.MegaTag2({
-        poseEstimator.estimatedPosition.rotation
-    }, {
-        inputs.gyroVelocity
-    })
+    private val mt2Algo = LimelightAlgorithm.MegaTag2(
+        {poseEstimator.estimatedPosition.rotation}, 
+        {inputs.gyroVelocity}
+    )
 
     private val absolutePoseIOs = when (Robot.model) {
         Robot.Model.SIMULATION -> mapOf(
@@ -252,11 +251,6 @@ object Drivetrain : Subsystem, Sendable {
 
     private fun drive(translationInput: Translation2d, rotationInput: Double) {
 
-        // Testing
-        Logger.recordOutput("Drivetrain/RawInputs/TranslationX", translationInput.x)
-        Logger.recordOutput("Drivetrain/RawInputs/TranslationY", translationInput.y)
-        Logger.recordOutput("Drivetrain/RawInputs/Rotation", rotationInput)
-
         if (isInDeadband(translationInput) && isInDeadband(rotationInput)) {
             // No joystick input - stop moving!
             desiredModuleStates = BRAKE_POSITION
@@ -273,11 +267,6 @@ object Drivetrain : Subsystem, Sendable {
                 realRot,
                 estimatedPose.rotation
             )
-
-            // More testing
-            Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationX", realX)
-            Logger.recordOutput("Drivetrain/ProcessedInputs/TranslationY", realY)
-            Logger.recordOutput("Drivetrain/ProcessedInputs/Rotation", realRot)
         }
     }
 
@@ -287,11 +276,12 @@ object Drivetrain : Subsystem, Sendable {
         return input.absoluteValue.pow(exponent).withSign(input)
     }
 
-//    fun driveWithJoysticks(translationJoystick: Joystick, rotationJoystick: Joystick): Command =
-//        run {
-//            // Directly accessing Joystick.x/y gives inverted values - use a `Translation2d` instead.
-//            drive(translationJoystick.fieldRelativeTranslation2d, rotationJoystick.translation2d)
-//        }
+    @Suppress("unused")
+    fun driveWithJoysticks(translationJoystick: Joystick, rotationJoystick: Joystick): Command =
+       run {
+           // Directly accessing Joystick.x/y gives inverted values - use a `Translation2d` instead.
+           drive(translationJoystick.fieldRelativeTranslation2d, rotationJoystick.translation2d)
+       }
 
     @Suppress("unused")
     fun driveWithController(controller: CommandXboxController): Command =
@@ -377,7 +367,7 @@ object Drivetrain : Subsystem, Sendable {
 
         val ROTATION_PID_GAINS = PIDGains(3.0, 0.0, 0.4)
 
-        //        // Pathing
+        // Pathing
         val DEFAULT_PATHING_CONSTRAINTS =
             PathConstraints(
                 FREE_SPEED.baseUnitMagnitude() * 2,
