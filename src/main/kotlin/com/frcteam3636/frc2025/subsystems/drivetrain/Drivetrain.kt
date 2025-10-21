@@ -43,13 +43,15 @@ import kotlin.math.absoluteValue
 import kotlin.math.pow
 import kotlin.math.withSign
 
-/** A singleton object representing the drivetrain. */
+
 object Drivetrain : Subsystem, Sendable {
+
     private val io = when (Robot.model) {
         Robot.Model.SIMULATION -> DrivetrainIOSim()
-        Robot.Model.COMPETITION -> DrivetrainIOReal.fromMk5nSwerve()
+        Robot.Model.COMPETITION -> DrivetrainIOReal.fromKrakenMAXSwerve()
         Robot.Model.PROTOTYPE -> DrivetrainIOReal.fromNeoMAXSwerve()
     }
+
     val inputs = LoggedDrivetrainInputs()
 
     private val mt2Algo = LimelightAlgorithm.MegaTag2(
@@ -61,7 +63,6 @@ object Drivetrain : Subsystem, Sendable {
         Robot.Model.SIMULATION -> mapOf(
             "Limelight" to CameraSimPoseProvider("limelight", Transform3d()),
         )
-
         else -> mapOf(
             "Limelight Right" to LimelightPoseProvider(
                 "limelight-right",
@@ -107,6 +108,7 @@ object Drivetrain : Subsystem, Sendable {
 
 
     init {
+
         Pathfinding.setPathfinder (
             LocalADStarAK()
         )
@@ -308,7 +310,6 @@ object Drivetrain : Subsystem, Sendable {
         }
 
         estimatedPose = Pose2d(estimatedPose.translation, zeroPos + offset)
-    //    io.setGyro(zeroPos)
     }
 
     var sysID = SysIdRoutine(
@@ -497,19 +498,11 @@ object Drivetrain : Subsystem, Sendable {
         /** A position with the modules radiating outwards from the center of the robot, preventing movement. */
         val BRAKE_POSITION = MODULE_POSITIONS.map { position -> SwerveModuleState(0.0, position.translation.angle) }
 
-        val QUESTNAV_DEVICE_OFFSET = Transform2d(
-            // TODO: find these constants
-            0.inches,
-            0.inches,
-            Rotation2d(0.degrees)
-        )
-
         val ALIGN_TRANSLATION_PID_GAINS = PIDGains(5.0)
         val ALIGN_ROTATION_PID_GAINS = PIDGains(2.0)
     }
 
     enum class Localizer {
-        QuestNav,
         PoseEstimator,
     }
 }

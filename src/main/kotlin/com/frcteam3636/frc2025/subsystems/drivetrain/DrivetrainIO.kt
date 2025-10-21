@@ -128,9 +128,8 @@ class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : Drivetra
     }
 }
 
-/** Drivetrain I/O layer that uses simulated swerve modules along with a simulated gyro with an angle based off their movement. */
 class DrivetrainIOSim : DrivetrainIO() {
-    // Create and configure a drivetrain simulation configuration
+    
     val driveTrainSimulationConfig: DriveTrainSimulationConfig =
         DriveTrainSimulationConfig.Default() // Specify gyro type (for realistic gyro drifting and error simulation)
             .withGyro(COTS.ofPigeon2()) // Specify swerve module (for realistic swerve dynamics)
