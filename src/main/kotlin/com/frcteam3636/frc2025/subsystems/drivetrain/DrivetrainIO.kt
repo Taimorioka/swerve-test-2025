@@ -84,9 +84,9 @@ class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : Drivetra
                 MODULE_POSITIONS.zip(Drivetrain.Constants.KRAKEN_MODULE_CAN_IDS)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        MAXSwerveModule(
+                        Mk5nSwerveModule(
                             DrivingTalon(driveId),
-                            turnId,
+                            TurningSparkMax(turnId),
                             position.rotation
                         )
                     })
@@ -96,9 +96,9 @@ class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : Drivetra
                 MODULE_POSITIONS.zip(Drivetrain.Constants.MODULE_CAN_IDS_PRACTICE)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        MAXSwerveModule(
+                        Mk5nSwerveModule(
                             DrivingSparkMAX(driveId),
-                            turnId,
+                            TurningSparkMax(turnId),
                             position.rotation
                         )
                     })

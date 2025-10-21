@@ -9,7 +9,6 @@ import com.ctre.phoenix6.controls.VoltageOut
 import com.ctre.phoenix6.signals.*
 import com.frcteam3636.frc2025.*
 import com.frcteam3636.frc2025.utils.math.*
-import com.frcteam3636.frc2025.utils.swerve.speed
 import com.revrobotics.spark.SparkBase
 import com.revrobotics.spark.SparkBase.PersistMode
 import com.revrobotics.spark.SparkBase.ResetMode
@@ -29,6 +28,7 @@ import edu.wpi.first.units.measure.Voltage
 import org.ironmaple.simulation.drivesims.SwerveModuleSimulation
 import org.ironmaple.simulation.motorsims.SimulatedMotorController
 import org.littletonrobotics.junction.Logger
+import kotlin.math.PI
 import kotlin.math.roundToInt
 
 interface SwerveModule {
@@ -44,7 +44,7 @@ interface SwerveModule {
 
     fun periodic() {}
     fun characterize(voltage: Voltage)
-    fun getSignals(): Array<BaseStatusSignal> { return arrayOf()}
+    fun getSignals(): Array<BaseStatusSignal> { return arrayOf() }
 }
 
 class Mk5nSwerveModule(
@@ -63,7 +63,7 @@ class Mk5nSwerveModule(
 
     override fun characterize(voltage: Voltage) {
         drivingMotor.setVoltage(voltage)
-        turningMotor.position = Radians.of(-chassisAngle.radians)
+        turningMotor.setPosition(Radians.of(-chassisAngle.radians))
     }
 
     override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
@@ -74,9 +74,9 @@ class Mk5nSwerveModule(
             // optimize the state to avoid rotating more than 90 degrees
             val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningMotor.position.inRadians()))
 
-            drivingMotor.velocity = optimized.speed
+            drivingMotor.setVelocity(optimized.speedMetersPerSecond.metersPerSecond)
 
-            turningMotor.position = corrected.angle.radians.radians
+            turningMotor.setPosition(Radians.of(corrected.angle.radians))
 
             field = optimized
         }
@@ -86,80 +86,78 @@ class Mk5nSwerveModule(
     }
 }
 
-class MAXSwerveModule( private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d) : SwerveModule {
-
-    private val turningSpark = SparkMax(turningId, SparkLowLevel.MotorType.kBrushless).apply {
-        configure(SparkMaxConfig().apply {
-            idleMode(IdleMode.kBrake)
-            smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
-
-            absoluteEncoder.apply {
-                inverted(true)
-                positionConversionFactor(TAU)
-                velocityConversionFactor(TAU / 60)
-            }
-
-            closedLoop.apply {
-                pid(TURNING_PID_GAINS_SPARK.p, TURNING_PID_GAINS_SPARK.i, TURNING_PID_GAINS_SPARK.d)
-                feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
-                positionWrappingEnabled(true)
-                positionWrappingMinInput(0.0)
-                positionWrappingMaxInput(TAU)
-            }
-        }, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
-    }
-
-    // whereas the turning encoder must be absolute so that
-    // we know where the wheel is pointing
-    private val turningEncoder = turningSpark.getAbsoluteEncoder()
-
-
-    private val turningPIDController = turningSpark.closedLoopController
-
-    override val state: SwerveModuleState
-        get() = SwerveModuleState(
-            drivingMotor.velocity.inMetersPerSecond(), Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
-        )
-
-    override val position: SwerveModulePosition
-        get() = SwerveModulePosition(
-            drivingMotor.position, Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
-        )
-
-    override fun characterize(voltage: Voltage) {
-        drivingMotor.setVoltage(voltage)
-        turningPIDController.setReference(-chassisAngle.radians, SparkBase.ControlType.kPosition)
-    }
-
-    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
-        get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
-        set(value) {
-            //corrected means module-relative angle
-            val corrected = SwerveModuleState(value.speedMetersPerSecond, value.angle - chassisAngle)
-            // optimize the state to avoid rotating more than 90 degrees
-            val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningEncoder.position))
-
-            drivingMotor.velocity = optimized.speed
-
-            turningPIDController.setReference(
-                corrected.angle.radians, SparkBase.ControlType.kPosition
-            )
-
-            field = optimized
-        }
-}
+//class MAXSwerveModule( private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d) : SwerveModule {
+//
+//    private val turningSpark = SparkMax(turningId, SparkLowLevel.MotorType.kBrushless).apply {
+//        configure(SparkMaxConfig().apply {
+//            idleMode(IdleMode.kBrake)
+//            smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
+//
+//            absoluteEncoder.apply {
+//                inverted(true)
+//                positionConversionFactor(TAU)
+//                velocityConversionFactor(TAU / 60)
+//            }
+//
+//            closedLoop.apply {
+//                pid(TURNING_PID_GAINS_NEO.p, TURNING_PID_GAINS_NEO.i, TURNING_PID_GAINS_NEO.d)
+//                feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
+//                positionWrappingEnabled(true)
+//                positionWrappingMinInput(0.0)
+//                positionWrappingMaxInput(TAU)
+//            }
+//        }, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
+//    }
+//
+//    private val turningEncoder = turningSpark.absoluteEncoder
+//    private val turningPIDController = turningSpark.closedLoopController
+//
+//    override val state: SwerveModuleState
+//        get() = SwerveModuleState(
+//            drivingMotor.velocity.inMetersPerSecond(), Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
+//        )
+//
+//    override val position: SwerveModulePosition
+//        get() = SwerveModulePosition(
+//            drivingMotor.position, Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
+//        )
+//
+//    override fun characterize(voltage: Voltage) {
+//        drivingMotor.setVoltage(voltage)
+//        turningPIDController.setReference(-chassisAngle.radians, SparkBase.ControlType.kPosition)
+//    }
+//
+//    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
+//        get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
+//        set(value) {
+//            //corrected means module-relative angle
+//            val corrected = SwerveModuleState(value.speedMetersPerSecond, value.angle - chassisAngle)
+//            // optimize the state to avoid rotating more than 90 degrees
+//            val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningEncoder.position))
+//
+//            drivingMotor.setVelocity(optimized.speedMetersPerSecond.metersPerSecond)
+//
+//            turningPIDController.setReference(
+//                corrected.angle.radians, SparkBase.ControlType.kPosition
+//            )
+//
+//            field = optimized
+//        }
+//}
 
 interface DrivingMotor {
     val position: Distance
-    var velocity: LinearVelocity
+    val velocity: LinearVelocity
     fun setVoltage(voltage: Voltage)
+    fun setVelocity(velocity: LinearVelocity)
     fun getSignals(): Array<BaseStatusSignal> {
         return arrayOf()
     }
 }
 
 interface TurningMotor {
-    var position: Angle
+    val position: Angle
+    fun setPosition(position: Angle)
     fun getSignals(): Array<BaseStatusSignal> {
         return arrayOf()
     }
@@ -193,11 +191,12 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
         EnableFOC = true
     }
 
-    override var velocity: LinearVelocity
+    override val velocity: LinearVelocity
         get() = inner.velocity.value.toLinear(WHEEL_RADIUS) * DRIVING_GEAR_RATIO_TALON
-        set(value) {
-            inner.setControl(velocityControl.withVelocity(value.toAngular(WHEEL_RADIUS) / DRIVING_GEAR_RATIO_TALON))
-        }
+
+    override fun setVelocity(velocity: LinearVelocity) {
+        inner.setControl(velocityControl.withVelocity(velocity.toAngular(WHEEL_RADIUS) / DRIVING_GEAR_RATIO_TALON))
+    }
 
     private val voltageControl = VoltageOut(0.0).apply {
         EnableFOC = true
@@ -213,7 +212,7 @@ class DrivingTalon(id: CTREDeviceId) : DrivingMotor {
 }
 
 //This is a Neo
-class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
+class DrivingSparkMAX(private val id: REVMotorControllerId) : DrivingMotor {
     private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
         val innerConfig = SparkMaxConfig().apply {
             idleMode(IdleMode.kBrake)
@@ -221,8 +220,8 @@ class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
             inverted(false)
 
             encoder.apply {
-                positionConversionFactor(WHEEL_CIRCUMFERENCE.inMeters() / DRIVING_GEAR_RATIO)
-                velocityConversionFactor(WHEEL_CIRCUMFERENCE.inMeters() / DRIVING_GEAR_RATIO / 60)
+                positionConversionFactor(WHEEL_CIRCUMFERENCE.inMeters() / DRIVING_GEAR_RATIO_NEO)
+                velocityConversionFactor(WHEEL_CIRCUMFERENCE.inMeters() / DRIVING_GEAR_RATIO_NEO / 60)
             }
 
             closedLoop.apply {
@@ -237,59 +236,64 @@ class DrivingSparkMAX(val id: REVMotorControllerId) : DrivingMotor {
     override val position: Distance
         get() = inner.absoluteEncoder.position.meters
 
-    override var velocity: LinearVelocity
+    override val velocity: LinearVelocity
         get() = inner.encoder.velocity.metersPerSecond
-        set(value) {
-            Logger.recordOutput("/Drivetrain/$id/OutputVel", value)
-            inner.closedLoopController.setReference(value.inMetersPerSecond(), SparkBase.ControlType.kVelocity)
-        }
+
+    override fun setVelocity(velocity: LinearVelocity) {
+        Logger.recordOutput("/Drivetrain/$id/OutputVel", velocity)
+        inner.closedLoopController.setReference(velocity.inMetersPerSecond(), SparkBase.ControlType.kVelocity)
+    }
 
     override fun setVoltage(voltage: Voltage) {
         inner.setVoltage(voltage.inVolts())
     }
 }
 
-class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Double): TurningMotor{
+class TurningTalon(id: CTREDeviceId, encoderID: CTREDeviceId, magnetOffset: Double): TurningMotor {
+
+    private val encoder = com.ctre.phoenix6.hardware.CANcoder(encoderID.num, encoderID.bus).apply {
+        configurator.apply(
+            CANcoderConfiguration().apply {
+                MagnetSensor.MagnetOffset = magnetOffset
+            }
+        )
+    }
 
     private val inner = TalonFX(id).apply {
         configurator.apply(TalonFXConfiguration().apply {
             Slot0.apply {
                 pidGains = TURNING_PID_GAINS_TALON
                 motorFFGains = TURNING_FF_GAINS_TALON
-                MotorOutput.apply {
-                    NeutralMode = NeutralModeValue.Brake
-                }
-                Feedback.apply {
-                    FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder
-                    SensorToMechanismRatio = TURNING_CANCODER_TO_MECHANISM_RATIO
-                    RotorToSensorRatio = TURNING_MOTOR_TO_MECHANISM_RATIO
-                    FeedbackRemoteSensorID = encoderId.num
-                }
-                CurrentLimits.apply {
-                    StatorCurrentLimit = TURNING_CURRENT_LIMIT.inAmps()
-                    StatorCurrentLimitEnable = true
-                }
+            }
+            MotorOutput.apply {
+                NeutralMode = NeutralModeValue.Brake
+            }
+            Feedback.apply {
+                FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder
+                SensorToMechanismRatio = TURNING_CANCODER_TO_MECHANISM_RATIO
+                RotorToSensorRatio = TURNING_MOTOR_TO_MECHANISM_RATIO
+                FeedbackRemoteSensorID = encoderID.num
+            }
+            CurrentLimits.apply {
+                StatorCurrentLimit = TURNING_CURRENT_LIMIT.inAmps()
+                StatorCurrentLimitEnable = true
             }
         })
     }
 
     init {
-        CANcoder(encoderId).apply {
-            configurator.apply(CANcoderConfiguration().apply {
-                MagnetSensor.MagnetOffset = magnetOffset
-            })    
-        }
         BaseStatusSignal.setUpdateFrequencyForAll(100.0, inner.position)
         inner.optimizeBusUtilization()
     }
 
-    override var position: Angle
-        get() = inner.getPosition(false).value
-        set(value) {
-            inner.setControl(positonControl.withPosition(value))
-        }
+    override val position: Angle
+        get() = Radians.of( inner.position.value.inRadians() * 2 * PI)
 
-    private val positonControl = PositionVoltage(0.0).apply {
+    override fun setPosition(position: Angle) {
+        inner.setControl(positionControl.withPosition(position.inRadians() / TAU))
+    }
+
+    private val positionControl = PositionVoltage(0.0).apply {
         EnableFOC = true
     }
 
@@ -301,31 +305,38 @@ class TurningTalon(id: CTREDeviceId, encoderId: CTREDeviceId, magnetOffset: Doub
 class TurningSparkMax(id: REVMotorControllerId): TurningMotor{
 
     private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
-        configure(SparkMaxConfig().apply {
-            idleMode(IdleMode.kBrake)
-            smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
+        configure(
+            SparkMaxConfig().apply {
+                idleMode(IdleMode.kBrake)
+                smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
 
-            absoluteEncoder.apply {
-                inverted(true)
-                positionConversionFactor(TAU)
-                velocityConversionFactor(TAU / 60)
-            }
+                absoluteEncoder.apply {
+                    inverted(true)
+                    positionConversionFactor(TAU)
+                    velocityConversionFactor(TAU / 60)
+                }
 
-            closedLoop.apply {
-                pid(TURNING_PID_GAINS_SPARK.p, TURNING_PID_GAINS_SPARK.i, TURNING_PID_GAINS_SPARK.d)
-                feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
-                positionWrappingEnabled(true)
-                positionWrappingMinInput(0.0)
-                positionWrappingMaxInput(TAU)
-            }
-        }, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
+                closedLoop.apply {
+                    pid(TURNING_PID_GAINS_NEO.p, TURNING_PID_GAINS_NEO.i, TURNING_PID_GAINS_NEO.d)
+                    feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
+                    positionWrappingEnabled(true)
+                    positionWrappingMinInput(0.0)
+                    positionWrappingMaxInput(TAU)
+                }
+            },
+            ResetMode.kResetSafeParameters, PersistMode.kPersistParameters
+        )
     }
 
-    override var position: Angle
-        get() = 
-        set(value) {
+    override val position: Angle
+        get() = Radians.of(inner.absoluteEncoder.position)
 
-        }
+    override fun setPosition(position: Angle) {
+        inner.closedLoopController.setReference(
+            position.inRadians(),
+            SparkBase.ControlType.kPosition
+        )
+    }
 
     override fun getSignals(): Array<BaseStatusSignal>{
         return arrayOf()
@@ -347,7 +358,7 @@ class SimSwerveModule(val sim: SwerveModuleSimulation) : SwerveModule {
     private val drivingFeedforward = SimpleMotorFeedforward(DRIVING_FF_GAINS_TALON)
     private val drivingFeedback = PIDController(DRIVING_PID_GAINS_TALON)
 
-    private val turningFeedback = PIDController(TURNING_PID_GAINS_SPARK).apply { enableContinuousInput(0.0, TAU) }
+    private val turningFeedback = PIDController(TURNING_PID_GAINS_NEO).apply { enableContinuousInput(0.0, TAU) }
 
     override val state: SwerveModuleState
         get() = SwerveModuleState(
@@ -386,30 +397,28 @@ class SimSwerveModule(val sim: SwerveModuleSimulation) : SwerveModule {
     }
 }
 
-// take the known wheel diameter, divide it by two to get the radius, then get the
-// circumference
+// Constants
 internal val WHEEL_RADIUS = 1.5.inches
 internal val WHEEL_CIRCUMFERENCE = WHEEL_RADIUS * TAU
 
-internal val NEO_FREE_SPEED = 5676.rpm
+internal const val DRIVING_GEAR_RATIO_TALON = 1.0 / 3.56
 
 private const val DRIVING_MOTOR_PINION_TEETH = 14
-
-internal const val DRIVING_GEAR_RATIO_TALON = 1.0 / 3.56
-const val DRIVING_GEAR_RATIO = (45.0 * 22.0) / (DRIVING_MOTOR_PINION_TEETH * 15.0)
+const val DRIVING_GEAR_RATIO_NEO = (45.0 * 22.0) / (DRIVING_MOTOR_PINION_TEETH * 15.0)
 
 const val TURNING_CANCODER_TO_MECHANISM_RATIO = 1.0
 const val TURNING_MOTOR_TO_MECHANISM_RATIO = 1.0
 
-internal val NEO_DRIVING_FREE_SPEED = NEO_FREE_SPEED.toLinear(WHEEL_CIRCUMFERENCE) / DRIVING_GEAR_RATIO
+internal val NEO_FREE_SPEED = 5676.rpm
+internal val NEO_DRIVING_FREE_SPEED = NEO_FREE_SPEED.toLinear(WHEEL_CIRCUMFERENCE) / DRIVING_GEAR_RATIO_NEO
 
 internal val DRIVING_PID_GAINS_TALON: PIDGains = PIDGains(.19426, 0.0)
 internal val DRIVING_PID_GAINS_NEO: PIDGains = PIDGains(0.04, 0.0, 0.0)
 internal val DRIVING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.22852, 0.1256, 0.022584)
 internal val DRIVING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.0, 1 / NEO_DRIVING_FREE_SPEED.inMetersPerSecond(), 0.0) // TODO: ensure this is right
 
-internal val TURNING_PID_GAINS_SPARK: PIDGains = PIDGains(1.7, 0.0, 0.125)
-internal val TURNING_FF_GAINS_SPARK: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+internal val TURNING_PID_GAINS_NEO: PIDGains = PIDGains(1.7, 0.0, 0.125)
+internal val TURNING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
 internal val TURNING_PID_GAINS_TALON: PIDGains = PIDGains(1.7, 0.0, 0.125)
 internal val TURNING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
 
