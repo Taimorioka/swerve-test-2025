@@ -16,7 +16,7 @@ enum class REVMotorControllerId(val num: Int) {
     FrontRightTurningMotor(6),
 
     FrontLeftDrivingMotor(1),
-    BackLeftDrivingMotor(4),
+    BackLeftDrivingMotor(4),    
     BackRightDrivingMotor(3),
     FrontRightDrivingMotor(2),
 
@@ -34,12 +34,25 @@ enum class CTREDeviceId(val num: Int, val bus: String) {
     BackLeftDrivingMotor(2, "*"),
     BackRightDrivingMotor(3, "*"),
     FrontRightDrivingMotor(4, "*"),
-    LeftElevatorMotor(11, "*"),
-    RightElevatorMotor(12, "*"),
-    ManipulatorMotor(13, "*"),
-    FunnelMotor(14, "*"),
-    PigeonGyro(20, "*"),
-    ElevatorEncoder(30, "*"),
+
+    //Only for Mk5n Swerve Turning Motors
+    FrontLeftTurningMotor(5,"*"),
+    BackLeftTurningMotor(8,"*"),
+    BackRightTurningMotor(7,"*"),
+    FrontRightTurningMotor(6,"*"),
+
+    FrontLeftEncoder(9, "*"),
+    BackLeftEncoder(10, "*"),
+    BackRightEncoder(11, "*"),
+    FrontRightEncoder(12, "*"),
+
+
+   PigeonGyro(20, "*"),
+//    LeftElevatorMotor(11, "*"),
+//    RightElevatorMotor(12, "*"),
+//    ManipulatorMotor(13, "*"),
+//    FunnelMotor(14, "*"),
+//    ElevatorEncoder(30, "*"),
 }
 
 fun CANcoder(id: CTREDeviceId) = CANcoder(id.num, id.bus)

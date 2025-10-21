@@ -1,6 +1,5 @@
 package com.frcteam3636.frc2025.subsystems.drivetrain
 
-import com.frcteam3636.frc2025.CTREDeviceId
 import com.frcteam3636.frc2025.Diagnostics
 import com.frcteam3636.frc2025.Pigeon2
 import com.frcteam3636.frc2025.Robot
@@ -68,46 +67,69 @@ abstract class DrivetrainIO {
             module.characterize(voltage)
         }
     }
+
+    fun getStatusSignals(): MutableList<BaseStatusSignal> {
+        val signals = mutableListOf<BaseStatusSignal>()
+
+        modules.forEach { module ->
+            signals += module.getSignals()
+        }
+        signals += gyro.getStatusSignals()
+        return signals
+    }
 }
 
-/** Drivetrain I/O layer that uses real swerve modules along with a NavX gyro. */
 class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : DrivetrainIO() {
+
     override val gyro = when (Robot.model) {
         Robot.Model.SIMULATION -> GyroSim(modules)
-        Robot.Model.COMPETITION -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
+        Robot.Model.COMPETITION -> GyroPigeon(Pigeon2(CTREDeviceId.PigeonGyro))
         Robot.Model.PROTOTYPE -> GyroNavX(AHRS(AHRS.NavXComType.kMXP_SPI))
     }
 
     companion object {
-        fun fromKrakenSwerve() =
+
+        fun fromMk5nSwerve() = DrivetrainIOReal(
+            PerCorner.generate { corner ->
+                val position = MODULE_POSITIONS[corner]
+                val ids = Drivetrain.Constants.MK5N_MODULE_CAN_IDS[corner]
+                val (driveId, turnId, encoderId) = ids
+                GeneralSwerveModule(
+                    DrivingTalon(driveId),
+                    TurningTalon(turnId, encoderId, 0.0), //TODO: Is magnetOffset 0?
+                    position.rotation
+                )
+            }
+        )
+
+        fun fromKrakenMAXSwerve() =
             DrivetrainIOReal(
-                MODULE_POSITIONS.zip(Drivetrain.Constants.KRAKEN_MODULE_CAN_IDS)
+                MODULE_POSITIONS.zip(Drivetrain.Constants.KRAKEN_MAX_MODULE_CAN_IDS)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        MAXSwerveModule(
+                        GeneralSwerveModule(
                             DrivingTalon(driveId),
-                            turnId,
+                            TurningSparkMax(turnId),
                             position.rotation
                         )
                     })
 
-        fun fromNeoSwerve() =
+        fun fromNeoMAXSwerve() =
             DrivetrainIOReal(
-                MODULE_POSITIONS.zip(Drivetrain.Constants.MODULE_CAN_IDS_PRACTICE)
+                MODULE_POSITIONS.zip(Drivetrain.Constants.NEO_MAX_MODULE_CAN_IDS)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        MAXSwerveModule(
+                        GeneralSwerveModule(
                             DrivingSparkMAX(driveId),
-                            turnId,
+                            TurningSparkMax(turnId),
                             position.rotation
                         )
                     })
     }
 }
 
-/** Drivetrain I/O layer that uses simulated swerve modules along with a simulated gyro with an angle based off their movement. */
 class DrivetrainIOSim : DrivetrainIO() {
-    // Create and configure a drivetrain simulation configuration
+    
     val driveTrainSimulationConfig: DriveTrainSimulationConfig =
         DriveTrainSimulationConfig.Default() // Specify gyro type (for realistic gyro drifting and error simulation)
             .withGyro(COTS.ofPigeon2()) // Specify swerve module (for realistic swerve dynamics)

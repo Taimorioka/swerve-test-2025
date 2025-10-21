@@ -56,6 +56,7 @@ class GyroNavX(private val ahrs: AHRS) : Gyro {
 }
 
 class GyroPigeon(private val pigeon: Pigeon2) : Gyro {
+    
     init {
         BaseStatusSignal.setUpdateFrequencyForAll(100.0, pigeon.yaw, pigeon.pitch, pigeon.roll)
     }
