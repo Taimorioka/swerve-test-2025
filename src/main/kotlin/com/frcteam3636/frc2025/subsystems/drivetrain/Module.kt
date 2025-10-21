@@ -32,12 +32,11 @@ import kotlin.math.PI
 import kotlin.math.roundToInt
 
 interface SwerveModule {
-    // This includes the speed and the angle
-    // in which the module is currently traveling.
+    // This is the speed and the angle of the module.
     val state: SwerveModuleState
     // This is the wheel velocity that we're trying to get to.
     var desiredState: SwerveModuleState
-    // The measured position of the module.
+    // This is the measured position of the module.
     // This is a vector with direction equal to the current angle of the module,
     // and magnitude equal to the total signed distance traveled by the wheel.
     val position: SwerveModulePosition
@@ -47,7 +46,7 @@ interface SwerveModule {
     fun getSignals(): Array<BaseStatusSignal> { return arrayOf() }
 }
 
-class Mk5nSwerveModule(
+class GeneralSwerveModule(
     private val drivingMotor: DrivingMotor,private val turningMotor: TurningMotor, private val chassisAngle: Rotation2d
     ): SwerveModule {
 
@@ -85,65 +84,6 @@ class Mk5nSwerveModule(
         return turningMotor.getSignals() + drivingMotor.getSignals()
     }
 }
-
-//class MAXSwerveModule( private val drivingMotor: DrivingMotor, turningId: REVMotorControllerId, private val chassisAngle: Rotation2d) : SwerveModule {
-//
-//    private val turningSpark = SparkMax(turningId, SparkLowLevel.MotorType.kBrushless).apply {
-//        configure(SparkMaxConfig().apply {
-//            idleMode(IdleMode.kBrake)
-//            smartCurrentLimit(TURNING_CURRENT_LIMIT.inAmps().roundToInt())
-//
-//            absoluteEncoder.apply {
-//                inverted(true)
-//                positionConversionFactor(TAU)
-//                velocityConversionFactor(TAU / 60)
-//            }
-//
-//            closedLoop.apply {
-//                pid(TURNING_PID_GAINS_NEO.p, TURNING_PID_GAINS_NEO.i, TURNING_PID_GAINS_NEO.d)
-//                feedbackSensor(ClosedLoopConfig.FeedbackSensor.kAbsoluteEncoder)
-//                positionWrappingEnabled(true)
-//                positionWrappingMinInput(0.0)
-//                positionWrappingMaxInput(TAU)
-//            }
-//        }, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters)
-//    }
-//
-//    private val turningEncoder = turningSpark.absoluteEncoder
-//    private val turningPIDController = turningSpark.closedLoopController
-//
-//    override val state: SwerveModuleState
-//        get() = SwerveModuleState(
-//            drivingMotor.velocity.inMetersPerSecond(), Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
-//        )
-//
-//    override val position: SwerveModulePosition
-//        get() = SwerveModulePosition(
-//            drivingMotor.position, Rotation2d.fromRadians(turningEncoder.position) + chassisAngle
-//        )
-//
-//    override fun characterize(voltage: Voltage) {
-//        drivingMotor.setVoltage(voltage)
-//        turningPIDController.setReference(-chassisAngle.radians, SparkBase.ControlType.kPosition)
-//    }
-//
-//    override var desiredState: SwerveModuleState = SwerveModuleState(0.0, Rotation2d())
-//        get() = SwerveModuleState(field.speedMetersPerSecond, field.angle + chassisAngle)
-//        set(value) {
-//            //corrected means module-relative angle
-//            val corrected = SwerveModuleState(value.speedMetersPerSecond, value.angle - chassisAngle)
-//            // optimize the state to avoid rotating more than 90 degrees
-//            val optimized = SwerveModuleState.optimize(corrected, Rotation2d.fromRadians(turningEncoder.position))
-//
-//            drivingMotor.setVelocity(optimized.speedMetersPerSecond.metersPerSecond)
-//
-//            turningPIDController.setReference(
-//                corrected.angle.radians, SparkBase.ControlType.kPosition
-//            )
-//
-//            field = optimized
-//        }
-//}
 
 interface DrivingMotor {
     val position: Distance
@@ -249,6 +189,7 @@ class DrivingSparkMAX(private val id: REVMotorControllerId) : DrivingMotor {
     }
 }
 
+//This is for a Mk5n swerve module
 class TurningTalon(id: CTREDeviceId, encoderID: CTREDeviceId, magnetOffset: Double): TurningMotor {
 
     private val encoder = com.ctre.phoenix6.hardware.CANcoder(encoderID.num, encoderID.bus).apply {
@@ -302,6 +243,7 @@ class TurningTalon(id: CTREDeviceId, encoderID: CTREDeviceId, magnetOffset: Doub
     }
 }
 
+//This is for a MAX swerve module
 class TurningSparkMax(id: REVMotorControllerId): TurningMotor{
 
     private val inner = SparkMax(id, SparkLowLevel.MotorType.kBrushless).apply {
@@ -398,7 +340,7 @@ class SimSwerveModule(val sim: SwerveModuleSimulation) : SwerveModule {
 }
 
 // Constants
-internal val WHEEL_RADIUS = 1.5.inches
+internal val WHEEL_RADIUS = 1.5.inches // TODO: is this different on a Mk5n?
 internal val WHEEL_CIRCUMFERENCE = WHEEL_RADIUS * TAU
 
 internal const val DRIVING_GEAR_RATIO_TALON = 1.0 / 3.56
@@ -418,7 +360,7 @@ internal val DRIVING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.22852, 0.1256
 internal val DRIVING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.0, 1 / NEO_DRIVING_FREE_SPEED.inMetersPerSecond(), 0.0) // TODO: ensure this is right
 
 internal val TURNING_PID_GAINS_NEO: PIDGains = PIDGains(1.7, 0.0, 0.125)
-internal val TURNING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
+internal val TURNING_FF_GAINS_NEO: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0) // TODO: I'm pretty sure we want only a PID controller on a turning motor
 internal val TURNING_PID_GAINS_TALON: PIDGains = PIDGains(1.7, 0.0, 0.125)
 internal val TURNING_FF_GAINS_TALON: MotorFFGains = MotorFFGains(0.1, 2.66, 0.0)
 

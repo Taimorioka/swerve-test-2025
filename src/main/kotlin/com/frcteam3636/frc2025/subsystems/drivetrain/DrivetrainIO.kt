@@ -1,8 +1,6 @@
 package com.frcteam3636.frc2025.subsystems.drivetrain
 
-import com.frcteam3636.frc2025.CTREDeviceId
 import com.frcteam3636.frc2025.Diagnostics
-import com.frcteam3636.frc2025.Pigeon2
 import com.frcteam3636.frc2025.Robot
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.BUMPER_LENGTH
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.BUMPER_WIDTH
@@ -79,24 +77,38 @@ class DrivetrainIOReal(override val modules: PerCorner<SwerveModule>) : Drivetra
     }
 
     companion object {
-        fun fromKrakenSwerve() =
+
+        fun fromMk5nSwerve() = DrivetrainIOReal(
+            PerCorner.generate { corner ->
+                val position = MODULE_POSITIONS[corner]
+                val ids = Drivetrain.Constants.MK5N_MODULE_CAN_IDS[corner]
+                val (driveId, turnId, encoderId) = ids
+                GeneralSwerveModule(
+                    DrivingTalon(driveId),
+                    TurningTalon(turnId, encoderId, 0.0), //TODO: Is magnetOffset 0?
+                    position.rotation
+                )
+            }
+        )
+
+        fun fromKrakenMAXSwerve() =
             DrivetrainIOReal(
-                MODULE_POSITIONS.zip(Drivetrain.Constants.KRAKEN_MODULE_CAN_IDS)
+                MODULE_POSITIONS.zip(Drivetrain.Constants.KRAKEN_MAX_MODULE_CAN_IDS)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        Mk5nSwerveModule(
+                        GeneralSwerveModule(
                             DrivingTalon(driveId),
                             TurningSparkMax(turnId),
                             position.rotation
                         )
                     })
 
-        fun fromNeoSwerve() =
+        fun fromNeoMAXSwerve() =
             DrivetrainIOReal(
-                MODULE_POSITIONS.zip(Drivetrain.Constants.MODULE_CAN_IDS_PRACTICE)
+                MODULE_POSITIONS.zip(Drivetrain.Constants.NEO_MAX_MODULE_CAN_IDS)
                     .map { (position, ids) ->
                         val (driveId, turnId) = ids
-                        Mk5nSwerveModule(
+                        GeneralSwerveModule(
                             DrivingSparkMAX(driveId),
                             TurningSparkMax(turnId),
                             position.rotation

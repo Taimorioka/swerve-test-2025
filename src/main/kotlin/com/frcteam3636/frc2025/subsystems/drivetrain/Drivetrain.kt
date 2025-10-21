@@ -11,10 +11,8 @@ import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.ROTATI
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.ROTATION_SENSITIVITY
 import com.frcteam3636.frc2025.subsystems.drivetrain.Drivetrain.Constants.TRANSLATION_SENSITIVITY
 import com.frcteam3636.frc2025.utils.ElasticWidgets
-import com.frcteam3636.frc2025.utils.fieldRelativeTranslation2d
 import com.frcteam3636.frc2025.utils.math.*
 import com.frcteam3636.frc2025.utils.swerve.*
-import com.frcteam3636.frc2025.utils.translation2d
 import com.pathplanner.lib.auto.AutoBuilder
 import com.pathplanner.lib.commands.PathfindingCommand
 import com.pathplanner.lib.config.ModuleConfig
@@ -30,21 +28,16 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics
 import edu.wpi.first.math.kinematics.SwerveModuleState
 import edu.wpi.first.math.system.plant.DCMotor
 import edu.wpi.first.math.util.Units
-import edu.wpi.first.networktables.NetworkTableInstance
 import edu.wpi.first.util.sendable.Sendable
 import edu.wpi.first.util.sendable.SendableBuilder
-import edu.wpi.first.wpilibj.Alert
 import edu.wpi.first.wpilibj.DriverStation
-import edu.wpi.first.wpilibj.Joystick
 import edu.wpi.first.wpilibj2.command.Command
-import edu.wpi.first.wpilibj2.command.Commands
 import edu.wpi.first.wpilibj2.command.Subsystem
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine
 import org.littletonrobotics.junction.Logger
 import java.util.*
 import kotlin.jvm.optionals.getOrNull
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -54,8 +47,8 @@ import kotlin.math.withSign
 object Drivetrain : Subsystem, Sendable {
     private val io = when (Robot.model) {
         Robot.Model.SIMULATION -> DrivetrainIOSim()
-        Robot.Model.COMPETITION -> DrivetrainIOReal.fromNeoSwerve()
-        Robot.Model.PROTOTYPE -> DrivetrainIOReal.fromNeoSwerve()
+        Robot.Model.COMPETITION -> DrivetrainIOReal.fromMk5nSwerve()
+        Robot.Model.PROTOTYPE -> DrivetrainIOReal.fromNeoMAXSwerve()
     }
     val inputs = LoggedDrivetrainInputs()
 
@@ -313,44 +306,6 @@ object Drivetrain : Subsystem, Sendable {
         enableContinuousInput(0.0, TAU)
     }
 
-    // @Suppress("unused")
-//    fun driveAlignedTo(translationJoystick: Joystick, targetGetter: () -> Translation2d): Command {
-//
-//        return runEnd({
-//            val target = targetGetter()
-//
-//            Logger.recordOutput("Drivetrain/Auto-align Target", target)
-//            val translationInput = if (abs(translationJoystick.x) > JOYSTICK_DEADBAND
-//                || abs(translationJoystick.y) > JOYSTICK_DEADBAND
-//            ) {
-//                Translation2d(-translationJoystick.y, -translationJoystick.x)
-//            } else {
-//                Translation2d()
-//            }
-//            val magnitude = rotationPIDController.calculate(
-//                target.minus(estimatedPose.translation).angle.radians - (TAU / 2),
-//                estimatedPose.rotation.radians
-//            )
-//
-//            desiredChassisSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
-//                translationInput.x * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-//                translationInput.y * FREE_SPEED.baseUnitMagnitude() * TRANSLATION_SENSITIVITY,
-//                -magnitude,
-//                estimatedPose.rotation
-//            )
-//        }, {
-//            // Might be worth testing this but AdvantageScope seems to ignore `null`s
-//            Logger.recordOutput("Drivetrain/Auto-align Target", Translation2d())
-//        })
-//    }
-
-    /**
-     * Drive to a pose on the field.
-     *
-     * @param usePathfinding - If enabled, uses PathPlanner to drive a long distance without colliding with anything.
-     * @param target - A function that returns the desired pose (called each time the command starts)
-     */
-
     fun zeroGyro(isReversed: Boolean = false, offset: Rotation2d = Rotation2d.kZero) {
         // Tell the gyro that the robot is facing the other alliance.
         var zeroPos = when (DriverStation.getAlliance().getOrNull()) {
@@ -472,7 +427,36 @@ object Drivetrain : Subsystem, Sendable {
 
 
         // CAN IDs
-        val KRAKEN_MODULE_CAN_IDS =
+        val MK5N_MODULE_CAN_IDS =
+            PerCorner(
+                frontLeft =
+                Triple(
+                    CTREDeviceId.FrontLeftDrivingMotor,
+                    CTREDeviceId.FrontLeftTurningMotor,
+                    CTREDeviceId.FrontLeftEncoder
+
+                ),
+                frontRight =
+                Triple(
+                    CTREDeviceId.FrontRightDrivingMotor,
+                    CTREDeviceId.FrontRightTurningMotor,
+                    CTREDeviceId.FrontRightEncoder
+                ),
+                backLeft =
+                Triple(
+                    CTREDeviceId.BackLeftDrivingMotor,
+                    CTREDeviceId.BackLeftTurningMotor,
+                    CTREDeviceId.BackLeftEncoder
+                ),
+                backRight =
+                Triple(
+                    CTREDeviceId.BackRightDrivingMotor,
+                    CTREDeviceId.BackRightTurningMotor,
+                    CTREDeviceId.BackRightEncoder
+                ),
+            )
+
+        val KRAKEN_MAX_MODULE_CAN_IDS =
             PerCorner(
                 frontLeft =
                     Pair(
@@ -496,7 +480,7 @@ object Drivetrain : Subsystem, Sendable {
                     ),
             )
 
-        internal val MODULE_CAN_IDS_PRACTICE =
+        internal val NEO_MAX_MODULE_CAN_IDS =
             PerCorner(
                 frontLeft =
                     Pair(
